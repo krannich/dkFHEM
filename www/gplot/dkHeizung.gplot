@@ -1,0 +1,25 @@
+set terminal png transparent size <SIZE> crop
+set output '<OUT>.png'
+set xdata time
+set timefmt "%Y-%m-%d_%H:%M:%S"
+set xlabel " "
+set ytics nomirror
+set y2tics
+set title '<TL>'
+set grid xtics y2tics
+
+set y2label "Temperatur (°C)"
+set ylabel "Ventilposition (%)"
+
+set y2range [17:30]
+set yrange [0:100]
+
+#FileLog 4:temperature\x3a:4.5:
+#FileLog 4:valveposition\x3a:0:
+
+plot \
+ "< awk 'temperature' <IN>",\
+      using 1:2 ls l1fill axes x1y2 title 'Temperatur' with lines
+ "< awk 'valveposition' <IN>",\
+      using 1:2 ls l0 axes x1y1 title 'Ventil' with steps
+      

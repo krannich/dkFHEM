@@ -1,0 +1,18 @@
+set terminal png transparent size <SIZE> crop
+set output '<OUT>.png'
+set xdata time
+set timefmt "%Y-%m-%d_%H:%M:%S"
+set xlabel " "
+set title '<TL>'
+set grid xtics y2tics
+
+set y1label "Temperatur (°C)"
+set yrange [5:28]
+set y2range [5:28]
+
+#FileLog 4:temperature\x3a:4.5:
+
+plot \
+ "< awk 'temperature' <IN>",\
+      using 1:2 ls l1fill axes x1y1 title 'Temperatur' with lines
+      

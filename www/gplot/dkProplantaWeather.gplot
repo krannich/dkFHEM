@@ -1,0 +1,20 @@
+set terminal png transparent size <SIZE> crop
+set output '<OUT>.png'
+set xdata time
+set timefmt "%Y-%m-%d_%H:%M:%S"
+set xlabel " "
+set ytics nomirror
+set y2tics 
+set title '<TL>'
+set grid xtics y2tics
+
+set y2label "Temperatur (°C)"
+set ylabel "Luftfeuchtigkeit (%)"
+
+set yrange [0:100]
+
+#FileLog 4:temperature\x3a:4.5:
+#FileLog 4:humidity\x3a:0:
+
+plot "<IN>" using 1:2 axes x1y2 title 'Temperatur (°C)' ls l0 lw 1.5 with lines,\
+     "<IN>" using 1:2 axes x1y1 title 'Luftfeuchtigkeit (%)' ls l2fill lw 0.2 with lines

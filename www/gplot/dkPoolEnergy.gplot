@@ -1,0 +1,15 @@
+set terminal png transparent size <SIZE> crop
+set output '<OUT>.png'
+set xdata time
+set timefmt "%Y-%m-%d_%H:%M:%S"
+set xlabel " "
+set title '<TL>'
+set grid xtics y2tics
+
+set y1label "kwh"
+
+#FileLog 4:pulseTimePerDay\x3a:0:$fld[3]/=3600
+
+plot \
+    "<IN>" using 1:2 axes x1y2 title 'Hours' ls l2 lw 1 with steps,\
+

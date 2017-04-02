@@ -1,0 +1,33 @@
+.background { fill:#FFFFE7; }
+
+text { font-family: Arial; font-weight:normal; font-size:12px; fill:#343434;}
+text.title {font-family: Arial; font-weight:normal; font-size:12px; fill:#343434;}
+text.legend{ cursor:pointer; }
+text.copy  { text-decoration:underline; stroke:none; fill:blue; cursor:pointer;}
+text.paste { text-decoration:underline; stroke:none; fill:blue; cursor:pointer;}
+
+path.SVGplot     { stroke:black; fill:none; }
+polyline.SVGplot { stroke:black; fill:none; }
+polyline { stroke:black; fill:none; }
+.border { stroke:black; fill:url(#gr_bg);}
+.vgrid { stroke:gray; stroke-dasharray:2,6;}
+.hgrid { stroke:gray; stroke-dasharray:2,6;}
+.pasted { stroke:black; stroke-dasharray:1,1;}
+
+.SVGplot.l0 { stroke:#fc3e39; }  text.SVGplot.l0 { stroke:none; fill:#fc3e39; } 
+.SVGplot.l1 { stroke:#53d769; }  text.SVGplot.l1 { stroke:none; fill:#53d769; } 
+.SVGplot.l2 { stroke:#157efb; }  text.SVGplot.l2 { stroke:none; fill:#157efb; }
+.SVGplot.l3 { stroke:#c34ceb; }  text.SVGplot.l3 { stroke:none; fill:#c34ceb; }
+.SVGplot.l4 { stroke:brown;   }  text.SVGplot.l4 { stroke:none; fill:brown;   }
+.SVGplot.l5 { stroke:black;   }  text.SVGplot.l5 { stroke:none; fill:black;   }
+.SVGplot.l6 { stroke:olive;   }  text.SVGplot.l6 { stroke:none; fill:olive;   }
+.SVGplot.l7 { stroke:gray;    }  text.SVGplot.l7 { stroke:none; fill:gray;    }
+.SVGplot.l8 { stroke:#f7ab28; }  text.SVGplot.l8 { stroke:none; fill:#f7ab28; }
+
+.SVGplot.l0fill{ stroke:#fc3e39; fill:url(#gr_0); }  text.SVGplot.l0fill{ stroke:none; fill:#fc3e39; }
+.SVGplot.l1fill{ stroke:#0088cc; fill:url(#gr_1); }  text.SVGplot.l1fill{ stroke:none; fill:#53d769; }
+.SVGplot.l2fill{ stroke:#157efb; fill:url(#gr_2); }  text.SVGplot.l2fill{ stroke:none; fill:#157efb; }
+.SVGplot.l3fill{ stroke:#c34ceb; fill:url(#gr_3); }  text.SVGplot.l3fill{ stroke:none; fill:#c34ceb; }
+.SVGplot.l4fill{ stroke:#ff0; fill:url(#gr_4); }  text.SVGplot.l4fill{ stroke:none; fill:#ff0; }
+.SVGplot.l5fill{ stroke:#0ff; fill:url(#gr_5); }  text.SVGplot.l5fill{ stroke:none; fill:#0ff; }
+.SVGplot.l6fill{ stroke:#000; fill:url(#gr_6); }  text.SVGplot.l6fill{ stroke:none; fill:#000; }
