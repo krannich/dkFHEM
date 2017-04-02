@@ -1,2 +1,6 @@
 # dkFHEM
-Erweiterungen für FHEM
+
+https://blog.krannich.de
+
+Hier findest Du meine Erweiterungen für FHEM
+
