@@ -7,11 +7,10 @@ Neues Modul für Husqvarna Automower mit Connect Modul (SIM)
 
 *(!) Dieses Modul befindet sich noch in der Entwicklung.*
 
-Dort findest Du auch die entsprechenden Beiträge:
+In meinem Blog findest Du die entsprechenden Beiträge zu folgenden Modulen:
 
 ## 99_dkUtils.pm
 https://blog.krannich.de/2016/02/meine-fhem-konfiguration-dkutils-das-kernstueck/
-
 
 ## 99_dkKindle.pm
 https://blog.krannich.de/2016/07/fhem-status-auf-kindle-paperwhite-3/
