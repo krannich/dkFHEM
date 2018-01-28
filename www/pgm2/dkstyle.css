@@ -1,5 +1,5 @@
 /*
-Version: 2016-11-20
+Version: 2018-01-04
 */
 
 @font-face {
@@ -297,6 +297,16 @@ table.room tr td a {
 	margin: 0;
 }
 
+
+tr.menuTree > td > div {
+	position: relative;
+}
+
+tr.menuTree > td > div > div {
+	position: absolute;
+	right: 0;
+	top: 10px;
+}
 
 table#room tr.sel td a,
 table.room tr.sel td a

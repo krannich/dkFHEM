@@ -1,5 +1,5 @@
 ##############################################
-## Stand: 02.04.2017
+## Stand: 31.07.2017
 ##############################################
 # $Id$
 package main;
@@ -17,7 +17,7 @@ sub dkUtils_Initialize($$) {
 #######################################
 ##
 ##
-## ALLGEMEINE FUNKTIONEN
+## ALLGEMEINE IS FUNKTIONEN
 ##
 ##
 #######################################
@@ -55,6 +55,45 @@ sub dkIsOn($) {
 		}
 	}
 	return join(", ", sort(@active_devices) );
+}
+
+sub dkIsWinter() {
+	my $is_winter = dkGetState("setting_winter");
+	if ($is_winter eq "on") { return 1; } else { return 0; }
+}
+
+sub dkIsXmas() {
+	my $is_xmas = dkGetState("setting_xmas");
+	if ($is_xmas eq "on") { return 1; } else { return 0; }
+}
+
+sub dkIsDND() {
+	my $is_xmas = dkGetState("setting_dnd");
+	if ($is_xmas eq "on") { return 1; } else { return 0; }
+}
+
+sub dkIsParentsHome() {
+	my $is_parents_home = dkGetState("rgr_Parents");
+	if ($is_parents_home eq "home") { return 1; } else { return 0; }
+}
+
+sub dkIsScharf() {
+	my $is_scharf = dkGetState("data_anlagenstatus");
+	if ( $is_scharf eq "unscharf" ) { return 0; } else { return 1; }
+}
+
+
+#######################################
+##
+##
+## ALLGEMEINE SET FUNKTIONEN
+##
+##
+#######################################
+
+sub dkSetState($$) {
+	my ($device, $value) = @_;	
+	fhem("setstate $device $value", 1);
 }
 
 sub dkSetDevice($$) {
@@ -102,7 +141,6 @@ sub dkToggle($) {
 }
 
 
-
 sub dkOnFor($$) {
 	my ($device, $durationInHours) = @_;
 	if (dkGetState($device) eq "on") { return 0; }
@@ -122,6 +160,11 @@ sub dkAutoOff($$$) {
 	}
 }
 
+sub dkAutoOffDelete($) {
+	my ($device) = @_;
+	my ($deviceAutoOff) = $device . "_AutoOff";	
+	if (dkExists($device)) { fhem("delete $deviceAutoOff", 1); }
+}
 
 sub dkSetBlinds($$) {
 	my ($input, $value) = @_;	
@@ -195,24 +238,6 @@ sub dkSetValue($$) {
 sub dkSetReading($$$) {
 	my($device, $reading, $value) = @_;
 	fhem("setreading $device $reading $value", 1);
-}
-
-#######################################
-
-sub dkIsXmas() {
-	my $is_xmas = dkGetState("setting_xmas");
-	if ($is_xmas eq "on") { return 1; } else { return 0; }
-}
-
-
-sub dkIsDND() {
-	my $is_xmas = dkGetState("setting_dnd");
-	if ($is_xmas eq "on") { return 1; } else { return 0; }
-}
-
-sub dkIsParentsHome() {
-	my $is_parents_home = dkGetState("rgr_Parents");
-	if ($is_parents_home eq "home") { return 1; } else { return 0; }
 }
 
 
@@ -427,8 +452,8 @@ sub dkHandleDishwasher($) {
 	my ($event) = @_;
 	
 	if ($event eq "on") {
-		fhem("set data_dishwasher_status on", 1);
-		fhem("setstate watchdog_dishwasher_autooff defined", 1);
+		dkOn("data_dishwasher_status");
+		dkSetState("watchdog_dishwasher_autooff", "defined");
 		dkPush("default", "Der Geschirrspüler wurde angeschaltet.");		
 	}
 	

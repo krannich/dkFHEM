@@ -1,8 +1,8 @@
 
 function GetClock() {
-	d = new Date();
-	nhour = d.getHours();
-	nmin = d.getMinutes();
+	var d = new Date();
+	var nhour = d.getHours();
+	var nmin = d.getMinutes();
 	if (nmin <= 9) { nmin = "0" + nmin; }
 	document.getElementById('logo').innerHTML = nhour + ":" + nmin;
 	setTimeout("GetClock()", 1000);
@@ -31,16 +31,23 @@ function sortBy(field, reverse, primer){
     } 
 }
 
-
+var pageInitialized = false;
 
 
 $(document).ready(function(){
-	document.title = 'FHEM :: dkHOME';
 	
+	if(pageInitialized) return;
+    pageInitialized = true;
+    
+	document.title = 'FHEM :: dkHOME';
+
 	var url = $(location).attr('href');
 	var wrapper = $('<div id="pagenav-wrapper" />');				
     var dknav = $('<div id="dknav" />');
-	var list = $('table.roomBlock2');
+    
+    var numItems = $('table[class*="roomBlock"]').length;
+	var list = $('table.roomBlock' + (numItems-1));
+
 	var navitems = [];
 	var order = 0;
 	var groupitems = {};
@@ -50,7 +57,7 @@ $(document).ready(function(){
 		var a_name = a.html();
 		var a_href = a.attr('href');
 
-		var room = a_name.split(/--/);
+		var room = a_name.split(/__/);
 		if (room.length > 1) {
 			if (groupitems[room[0]]) {
 				var orderid = groupitems[room[0]];
@@ -94,10 +101,12 @@ $(document).ready(function(){
 	
 	wrapper.append(dknav);
 	$('body').append(wrapper);
+	
 	$('#menu').remove();
 	
 	$('.navitem.with_sub').bind('click', function(e){
 		$('.subnav.open').removeClass("open").addClass("closed");
+		
 		var selected_submenu = $( "#" + $(this).attr("id") + "sub");
 		if ($(this).hasClass("open") ) {
 			$(this).removeClass("open");
@@ -114,7 +123,7 @@ $(document).ready(function(){
 
 $(document).ready(function() {
 	$("#content a:contains('systemCommands')").parent('div').parent('td').parent('tr').remove();
-	var footernav = $('<div id="footernav"><a href="/fhem/docs/commandref.html" target="_blank">Commandref</a> | <a href="/fhem?cmd=style%20eventMonitor">Event monitor</a></div>');
+	var footernav = $('<div id="footernav"><a href="/fhem/docs/commandref.html" target="_blank">Commandref</a> | <a href="/fhem?cmd=style%20eventMonitor">Event monitor</a> | <a href="/fhem?cmd=save">Save config</a> | <a href="/fhem/ftui/">Tablet UI</a></div>');
 	$('#content').append(footernav);
 	
 	if(document.URL.indexOf("showall") != -1) {

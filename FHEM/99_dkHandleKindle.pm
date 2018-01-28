@@ -133,6 +133,10 @@ sub dkKindleDashboard() {
 	if ($muell_gelb < $muell_next_days && $muell_gelb > 0) { $muell_next_days = $muell_gelb; $muell_next_name = "Gelber Sack";  } 
 	if ($muell_rest < $muell_next_days && $muell_rest > 0) { $muell_next_days = $muell_rest; $muell_next_name = "Restmüll";  } 
 	
+	if ($muell_gelb == $muell_rest && $muell_rest == $muell_next_days) {
+		$muell_next_name = "Gelber Sack + Restmüll";
+	}
+	
 	if ($muell_next_days > 0 && $muell_next_days != 100) {
 		if ($muell_next_days == 1) {
 			$muell_next_name = 'Morgen <tspan style="font-weight:bold">' . $muell_next_name . '</tspan>';		
@@ -145,6 +149,10 @@ sub dkKindleDashboard() {
 	if ($muell_blau == 0) { $muell_heute_name = "Altpapier"; } 
 	if ($muell_gelb == 0) { $muell_heute_name = "Gelber Sack";  } 
 	if ($muell_rest == 0) { $muell_heute_name = "Restmüll";  } 
+	
+	if ($muell_gelb == $muell_rest && $muell_rest == 0) {
+		$muell_heute_name = "Gelber Sack + Restmüll";
+	}
 	
 	$filedata =~ s/MUELLNEXT/$muell_next_name/;		
 	$filedata =~ s/MUELLHEUTE/$muell_heute_name/;		
@@ -162,7 +170,7 @@ sub dkKindleDashboard() {
 	my $weather_icon_3_code = dkGetProplantaWeatherIcon('fc2_weatherDay');
 	$filedata =~ s/ICON3/$weather_icon_3_code/;
 
-	my $weather_temperature_today = dkGetReading('proplanta', 'temperature');
+	my $weather_temperature_today = dkGetReading('AB_Sensor_Temperatur', 'temperature');
 	$filedata =~ s/TEMP/$weather_temperature_today/;
 
 	my $weather_temperature_today_min = dkGetReading('proplanta', 'fc0_tempMin');
@@ -197,7 +205,9 @@ sub dkKindleDashboard() {
     print DATEI "$filedata";
 	close (DATEI);
 	
-	system("convert $filename_output_svg -type GrayScale -depth 8 $filename_output_png &");
+	system("convert -colorspace Gray -depth 8 -rotate 90 $filename_output_svg $filename_output_png &");
+
+	#system("convert $filename_output_svg -type GrayScale -depth 8 $filename_output_png &");
 		
 }
 

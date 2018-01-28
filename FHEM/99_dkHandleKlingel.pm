@@ -45,7 +45,13 @@ sub dkRouteKlingel($$) {
 sub dkAct_Klingel_01($$) {
 	my ($button,$button_event) = @_;	
 	if ($button eq "CH_04") {
-		fhem("set mytts tts :dingdong1.mp3:", 1);
+		
+		if ( dkIsXmas() ) {
+			fhem("set mytts tts :jinglebells.mp3:", 1);		
+		} else {
+			fhem("set mytts tts :dingdong1.mp3:", 1);
+		}
+		
 		dkDisplayText('Ding dong! Seitentür.');
 		if (!dkIsParentsHome()) {
 			dkPush("incoming", "Ding dong! Seitentür.");
