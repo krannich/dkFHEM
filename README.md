@@ -3,8 +3,7 @@
 Wenn Du mehr über meine Hausautomation mit FHEM erfahren möchtest, schau gerne in meinem Blog vorbei.
 https://blog.krannich.de
 
-Neues Modul für Husqvarna Automower mit Connect Modul (SIM)
-
+## Neues Modul für Husqvarna Automower mit Connect Modul (SIM)
 *(!) Dieses Modul befindet sich noch in der Entwicklung.*
 
 In meinem Blog findest Du die entsprechenden Beiträge zu folgenden Modulen:
