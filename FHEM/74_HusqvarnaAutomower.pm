@@ -41,7 +41,12 @@ my $version = "0.1";
 use constant AUTHURL => "https://iam-api.dss.husqvarnagroup.net/api/v3/";
 use constant APIURL => "https://amc-api.dss.husqvarnagroup.net/v1/";
 
+##############################################################
+#
 # Declare functions
+#
+##############################################################
+
 sub HusqvarnaAutomower_Initialize($);
 sub HusqvarnaAutomower_Define($$);
 
@@ -49,15 +54,12 @@ sub HusqvarnaAutomower_Notify($$);
 
 sub HusqvarnaAutomower_Attr(@);
 sub HusqvarnaAutomower_Set($@);
-
-sub HusqvarnaAutomower_WriteReadings($$);
-sub HusqvarnaAutomower_Parse($$);
-
 sub HusqvarnaAutomower_Undef($$);
 
 sub HusqvarnaAutomower_CONNECTED($@);
 
-#----
+
+##############################################################
 
 sub HusqvarnaAutomower_Initialize($) {
 	my ($hash) = @_;
@@ -65,12 +67,12 @@ sub HusqvarnaAutomower_Initialize($) {
     $hash->{SetFn}      = "HusqvarnaAutomower_Set";
     $hash->{DefFn}      = "HusqvarnaAutomower_Define";
     $hash->{UndefFn}    = "HusqvarnaAutomower_Undef";
-    $hash->{ParseFn}    = "HusqvarnaAutomower_Parse";
     $hash->{NotifyFn} 	= "HusqvarnaAutomower_Notify";
     $hash->{AttrFn}     = "HusqvarnaAutomower_Attr";
     $hash->{AttrList}   = "username " .
                           "password " .
                           "mower " .
+                          "interval " .
                           $readingFnAttributes;
 
     foreach my $d(sort keys %{$modules{HusqvarnaAutomower}{defptr}}) {
@@ -84,26 +86,31 @@ sub HusqvarnaAutomower_Initialize($) {
 sub HusqvarnaAutomower_Define($$){
     my ( $hash, $def ) = @_;
     my @a = split( "[ \t]+", $def );
+    my $name = $a[0];
 
     return "too few parameters: define <NAME> HusqvarnaAutomower" if( @a < 1 ) ;
     return "Cannot define HusqvarnaAutomower device. Perl modul $missingModul is missing." if ( $missingModul );
 
-    my $name = $a[0];
     %$hash = (%$hash,
-        NOTIFYDEV => 'global',
+        NOTIFYDEV => "global,$name",
         HusqvarnaAutomower     => { 
             CONNECTED   => 0,
             version     => $version,
             token		=> '',
-            provider		=> '',
+            provider	=> '',
             user_id		=> '',
             device_id	=> '',
+            mower 		=> 0,
+            username 	=> '',
+            password 	=> '',
+            interval    => 300,
+            expires 	=> time(),
         },
     );
-
-	HusqvarnaAutomower_CONNECTED($hash,'disconnected');
-
-    Log3 $name, 5, "$name: Defined with url:AUTHURL, version:$hash->{HusqvarnaAutomower}->{version}";
+	
+	$attr{$name}{room} = "HusqvarnaAutomower" if( !defined( $attr{$name}{room} ) );
+	
+	HusqvarnaAutomower_CONNECTED($hash,'initialized');
 
 	return undef;
 
@@ -114,141 +121,111 @@ sub HusqvarnaAutomower_Notify($$) {
     
     my ($hash,$dev) = @_;
     my ($name) = ($hash->{NAME});
-
-    Log3 $name, 5, "NOTIFY STARTED";
- 	
-    return if($dev->{NAME} ne "global");
-    return if(!grep(m/^DEFINED|MODIFIED|INITIALIZED|REREADCFG$/, @{$dev->{CHANGED}}));
-
-    if(AttrVal($name, "disable", 0)) {
-        Log3 $name, 5, "Device '$name' is disabled, do nothing...";
-        HusqvarnaAutomower_CONNECTED($hash,'disabled');
-    } else {
-        HusqvarnaAutomower_CONNECTED($hash,'initialized');
-        HusqvarnaAutomower_DoUpdate($hash);
-        
+    
+	if (AttrVal($name, "disable", 0)) {
+		Log3 $name, 5, "Device '$name' is disabled, do nothing...";
+		HusqvarnaAutomower_CONNECTED($hash,'disabled');
+	    return undef;
     }
+
+ 	my $devname = $dev->{NAME};
+    my $devtype = $dev->{TYPE};
+    my $events = deviceEvents($dev,1);
+	return if (!$events);
+    
+    $hash->{HusqvarnaAutomower}->{updateStartTime} = time();    
+    
+    if ( $devtype eq 'Global') {
+	    if (
+	    	grep /^INITIALIZED$/,@{$events}
+	    	or grep /^REREADCFG$/,@{$events}
+	        or grep /^DEFINED.$name$/,@{$events}
+	        or grep /^MODIFIED.$name$/,@{$events}
+	    ) {
+	        HusqvarnaAutomower_APIAuth($hash);
+	    }
+	} 
+	
+	if ( $devtype eq 'HusqvarnaAutomower') {
+		if ( grep(/^state:.authenticated$/, @{$events}) ) {
+        	HusqvarnaAutomower_getMower($hash);
+		}
+		
+		if ( grep(/^state:.connected$/, @{$events}) ) {
+			HusqvarnaAutomower_DoUpdate($hash);
+		}
+			
+		if ( grep(/^state:.disconnected$/, @{$events}) ) {
+			HusqvarnaAutomower_APIAuth($hash);
+		}
+	}
+            
     return undef;
 }
 
-
-sub HusqvarnaAutomower_DoUpdate($) {
-    my ($hash) = @_;
-    my ($name) = $hash->{NAME};
-    
-    Log3 $name, 5, "$name UPDATE - executed.";
-
-    if (HusqvarnaAutomower_CONNECTED($hash) eq "disabled") {
-        Log3 $name, 5, "$name - Device is disabled.";
-        return undef;
-    }
-
-	if (HusqvarnaAutomower_CONNECTED($hash)) {
-		Log3 $name, 5, "READY FOR UPDATE";
-        HusqvarnaAutomower_getMower($hash);
-
-        # do stuff
-		# get status of automower        
-        
-        # trigger next update
-        # Unifi_NextUpdateFn($hash,$self);
-
-	} else {
-		HusqvarnaAutomower_CONNECTED($hash,'disconnected');
-        HusqvarnaAutomower_APIAuth($hash);
-	}
-
-}
-
-
-sub HusqvarnaAutomower_getMower($) {
-	my ($hash) = @_;
-    my ($name) = $hash->{NAME};
-
-	my $token = $hash->{HusqvarnaAutomower}->{token};
-	my $provider = $hash->{HusqvarnaAutomower}->{provider};
-	my $header = "Content-Type: application/json\r\nAccept: application/json\r\nAuthorization: Bearer " . $token . "\r\nAuthorization-Provider: " . $provider;
-
-	HttpUtils_NonblockingGet({
-        url        	=> APIURL . "mowers",
-        timeout    	=> 5,
-        hash       	=> $hash,
-        method     	=> "GET",
-        header     	=> $header,  
-        callback   	=> \&HusqvarnaAutomower_getMowerResponse,
-    });  
-	
-	return undef;
-}
-
-sub HusqvarnaAutomower_getMowerResponse($) {
-	my ($param, $err, $data) = @_;
-    my $hash = $param->{hash};
-    my $name = $hash->{NAME};
-	my $number = 0;
-	if ($attr{$name}{mower}) { 
-		$number = $attr{$name}{mower};
-	}
-
-    if($err ne "") {
-        Log3 $name, 5, "error while requesting ".$param->{url}." - $err";     
-                                           
-    } elsif($data ne "") {
-	    
-		if ($data eq "[]") {
-		    	Log3 $name, 3, "Please register an automower first";
-			
-		} else {
-		    	Log3 $name, 3, "Automower(s) found"; 			
-			Log3 $name, 3, $data; 
-			#my $result = decode_json($data);
-		    #if ($result->{errors}) {
-			#    Log3 $name, 3, "Error: " . $result->{errors}[0]->{detail};
-		    #} else {
-		    #    Log3 $name, 3, "$data"; 
-		    #}
-		}
-	    
-	}	
-	
-	return undef;
-}
-
-
-sub HusqvarnaAutomower_CONNECTED($@) {
-	my ($hash,$set) = @_;
-	 
-    if ($set) {
-	   $hash->{HusqvarnaAutomower}->{CONNECTED} = $set;
-       RemoveInternalTimer($hash);
-       %{$hash->{updateDispatch}} = ();
-        if (!defined($hash->{READINGS}->{state}->{VAL}) || $hash->{READINGS}->{state}->{VAL} ne $set) {
-            readingsSingleUpdate($hash,"state",$set,1);
-        }
-	   return undef;
-	} else {
-		if ($hash->{HusqvarnaAutomower}->{CONNECTED} eq 'disabled') {
-            return 'disabled';
-        }
-        elsif ($hash->{HusqvarnaAutomower}->{CONNECTED} eq 'connected') {
-            return 1;
-        } else {
-            return 0;
-        }
-	}
-}
 
 sub HusqvarnaAutomower_Attr(@) {
+	
     my ( $cmd, $name, $attrName, $attrVal ) = @_;
     my $hash = $defs{$name};
-	Log3 $name, 5, "ATTR";
-    if($cmd eq "set") {
-		Log3 $name, 5, "ATTR SET";
+		
+	if( $attrName eq "disable" ) {
+        if( $cmd eq "set" and $attrVal eq "1" ) {
+            RemoveInternalTimer($hash);
+            readingsSingleUpdate ( $hash, "state", "disable", 1 );
+            Log3 $name, 5, "$name - disabled";
+        }
+
+        elsif( $cmd eq "del" ) {
+            readingsSingleUpdate ( $hash, "state", "active", 1 );
+            Log3 $name, 5, "$name - enabled";
+        }
+    }
+    
+	elsif( $attrName eq "username" ) {
+		if( $cmd eq "set" ) {
+		    $hash->{HusqvarnaAutomower}->{username} = $attrVal;
+		    Log3 $name, 5, "$name - username set to " . $hash->{HusqvarnaAutomower}->{username};
+		}
 	}
+
+	elsif( $attrName eq "password" ) {
+		if( $cmd eq "set" ) {
+			$hash->{HusqvarnaAutomower}->{password} = $attrVal;
+		    Log3 $name, 5, "$name - password set to " . $hash->{HusqvarnaAutomower}->{password};	
+		}
+	}
+	
+	elsif( $attrName eq "mower" ) {
+		if( $cmd eq "set" ) {
+			$hash->{HusqvarnaAutomower}->{mower} = $attrVal;
+		    Log3 $name, 5, "$name - mower set to " . $hash->{HusqvarnaAutomower}->{mower};	
+		}
+		elsif( $cmd eq "del" ) {
+            $hash->{HusqvarnaAutomower}->{mower}   = 0;
+            Log3 $name, 5, "$name - deleted mower and set to default: 0";
+        }
+
+	}
+
+	elsif( $attrName eq "interval" ) {
+        if( $cmd eq "set" ) {
+            RemoveInternalTimer($hash);
+            return "Interval must be greater than 0"
+            unless($attrVal > 0);
+            $hash->{HusqvarnaAutomower}->{interval} = $attrVal;
+            Log3 $name, 5, "$name - set interval: $attrVal";
+        }
+
+        elsif( $cmd eq "del" ) {
+            RemoveInternalTimer($hash);
+            $hash->{HusqvarnaAutomower}->{interval}   = 300;
+            Log3 $name, 5, "$name - deleted interval and set to default: 300";
+        }
+    }
+
     return undef;
 }
-
-
 
 
 sub HusqvarnaAutomower_Undef($$){
@@ -264,17 +241,17 @@ sub HusqvarnaAutomower_Undef($$){
 sub HusqvarnaAutomower_Set($@){}
 
 
-sub HusqvarnaAutomower_WriteReadings($$){}
-sub HusqvarnaAutomower_Parse($$){}
-
-
-
+##############################################################
+#
+# API AUTHENTICATION
+#
+##############################################################
 
 sub HusqvarnaAutomower_APIAuth($) {
     my ($hash, $def) = @_;
     my $name = $hash->{NAME};
-    my $username = $attr{$name}{username};
-    my $password = $attr{$name}{password};
+    my $username = $hash->{HusqvarnaAutomower}->{username};
+    my $password = $hash->{HusqvarnaAutomower}->{password};
     
     my $json = '	{
     		"data" : {
@@ -296,11 +273,134 @@ sub HusqvarnaAutomower_APIAuth($) {
         callback   	=> \&HusqvarnaAutomower_APIAuthResponse,
     });  
     
-    return undef;                                                                                   
 }
+
 
 sub HusqvarnaAutomower_APIAuthResponse($) {
     my ($param, $err, $data) = @_;
+    my $hash = $param->{hash};
+    my $name = $hash->{NAME};
+
+    if($err ne "") {
+	    HusqvarnaAutomower_CONNECTED($hash,'error');
+        Log3 $name, 5, "error while requesting ".$param->{url}." - $err";     
+                                           
+    } elsif($data ne "") {
+	    
+	    my $result = decode_json($data);
+	    if ($result->{errors}) {
+		    HusqvarnaAutomower_CONNECTED($hash,'error');
+		    Log3 $name, 5, "Error: " . $result->{errors}[0]->{detail};
+		    
+	    } else {
+	        Log3 $name, 5, "$data"; 
+
+			$hash->{HusqvarnaAutomower}->{token} = $result->{data}{id};
+			$hash->{HusqvarnaAutomower}->{provider} = $result->{data}{attributes}{provider};
+			$hash->{HusqvarnaAutomower}->{user_id} = $result->{data}{attributes}{user_id};
+			$hash->{HusqvarnaAutomower}->{expires} = time() + $result->{data}{attributes}{expires_in};
+			
+			# set Readings			
+			readingsSingleUpdate($hash,'token',$hash->{HusqvarnaAutomower}->{token},1);
+			readingsSingleUpdate($hash,'provider',$hash->{HusqvarnaAutomower}->{provider},1);
+			readingsSingleUpdate($hash,'user_id',$hash->{HusqvarnaAutomower}->{user_id},1);
+			readingsSingleUpdate($hash,'expires',$hash->{HusqvarnaAutomower}->{expires},1);
+			
+			HusqvarnaAutomower_CONNECTED($hash,'authenticated');
+
+	    }
+        
+    }
+
+}
+
+
+sub HusqvarnaAutomower_CONNECTED($@) {
+	my ($hash,$set) = @_;
+    if ($set) {
+	   $hash->{HusqvarnaAutomower}->{CONNECTED} = $set;
+       RemoveInternalTimer($hash);
+       %{$hash->{updateDispatch}} = ();
+       if (!defined($hash->{READINGS}->{state}->{VAL}) || $hash->{READINGS}->{state}->{VAL} ne $set) {
+       		readingsSingleUpdate($hash,"state",$set,1);
+       }
+	   return undef;
+	} else {
+		if ($hash->{HusqvarnaAutomower}->{CONNECTED} eq 'disabled') {
+            return 'disabled';
+        }
+        elsif ($hash->{HusqvarnaAutomower}->{CONNECTED} eq 'connected') {
+            return 1;
+        } else {
+            return 0;
+        }
+	}
+}
+
+
+##############################################################
+#
+# UPDATE FUNCTIONS
+#
+##############################################################
+
+sub HusqvarnaAutomower_DoUpdate($) {
+    my ($hash) = @_;
+    my ($name,$self) = ($hash->{NAME},HusqvarnaAutomower_Whoami());
+
+    Log3 $name, 3, "doUpdate() called.";
+
+    if (HusqvarnaAutomower_CONNECTED($hash) eq "disabled") {
+        Log3 $name, 3, "$name - Device is disabled.";
+        return undef;
+    }
+
+	if (time() >= $hash->{HusqvarnaAutomower}->{expires} ) {
+		Log3 $name, 3, "LOGIN TOKEN MISSING OR EXPIRED";
+		HusqvarnaAutomower_CONNECTED($hash,'disconnected');
+
+	} elsif ($hash->{HusqvarnaAutomower}->{CONNECTED} eq 'connected') {
+		Log3 $name, 3, "CONNECTED TO HUSQVARNA CLOUD " . $hash->{HusqvarnaAutomower}->{device_id};
+                
+        InternalTimer( time() + $hash->{HusqvarnaAutomower}->{interval}, $self, $hash, 0 );
+
+	} 
+    
+
+}
+
+
+
+
+##############################################################
+#
+# GET MOWERS
+#
+##############################################################
+
+sub HusqvarnaAutomower_getMower($) {
+	my ($hash) = @_;
+    my ($name) = $hash->{NAME};
+
+	my $token = $hash->{HusqvarnaAutomower}->{token};
+	my $provider = $hash->{HusqvarnaAutomower}->{provider};
+	my $header = "Content-Type: application/json\r\nAccept: application/json\r\nAuthorization: Bearer " . $token . "\r\nAuthorization-Provider: " . $provider;
+
+	HttpUtils_NonblockingGet({
+        url        	=> APIURL . "mowers",
+        timeout    	=> 5,
+        hash       	=> $hash,
+        method     	=> "GET",
+        header     	=> $header,  
+        callback   	=> \&HusqvarnaAutomower_getMowerResponse,
+    });  
+	
+	return undef;
+}
+
+
+sub HusqvarnaAutomower_getMowerResponse($) {
+	my ($param, $err, $data) = @_;
     my $hash = $param->{hash};
     my $name = $hash->{NAME};
 
@@ -309,38 +409,45 @@ sub HusqvarnaAutomower_APIAuthResponse($) {
                                            
     } elsif($data ne "") {
 	    
-	    my $result = decode_json($data);
-	    if ($result->{errors}) {
-		    Log3 $name, 5, "Error: " . $result->{errors}[0]->{detail};
-	    } else {
-	        Log3 $name, 5, "$data"; 
+		if ($data eq "[]") {
+		    Log3 $name, 3, "Please register an automower first";
+		    $hash->{HusqvarnaAutomower}->{device_id} = "none";
 
-			$hash->{HusqvarnaAutomower}->{token} = $result->{data}{id};
-			$hash->{HusqvarnaAutomower}->{provider} = $result->{data}{attributes}{provider};
-			$hash->{HusqvarnaAutomower}->{user_id} = $result->{data}{attributes}{user_id};
-
-			# getMower device_id
-			$hash->{HusqvarnaAutomower}->{device_id} = "";
-
-			# set Readings			
-			readingsSingleUpdate($hash,'token',$result->{data}{id},1);
-			readingsSingleUpdate($hash,'provider',$result->{data}{attributes}{provider},1);
-			readingsSingleUpdate($hash,'user_id',$result->{data}{attributes}{user_id},1);
-			readingsSingleUpdate($hash,'device_id',"",1);
-			
+		    # STATUS LOGGEDIN MUST BE REMOVED
 			HusqvarnaAutomower_CONNECTED($hash,'connected');
-			HusqvarnaAutomower_DoUpdate($hash);
-			return undef;                                                                                   
 
-	    }
-        
-    }
-    
-    return undef;                                                                                   
+		} else {
+			my $mower = $hash->{HusqvarnaAutomower}->{mower};
+
+		    Log3 $name, 3, "Automower(s) found"; 			
+			Log3 $name, 3, $data; 
+			#my $result = decode_json($data);
+		    #if ($result->{errors}) {
+			#    Log3 $name, 3, "Error: " . $result->{errors}[0]->{detail};
+		    #} else {
+		    #    Log3 $name, 3, "$data"; 
+		    #}
+		   
+			$hash->{HusqvarnaAutomower}->{device_id} = "someid";
+			HusqvarnaAutomower_CONNECTED($hash,'connected');
+
+		}
+		
+		readingsSingleUpdate($hash, "device_id", $hash->{HusqvarnaAutomower}->{device_id}, 1);    
+
+	    
+	}	
+	
+	return undef;
 
 }
 
+###############################################################################
 
+sub HusqvarnaAutomower_Whoami()  { return (split('::',(caller(1))[3]))[1] || ''; }
+sub HusqvarnaAutomower_Whowasi() { return (split('::',(caller(2))[3]))[1] || ''; }
+
+##############################################################
 
 1;
 
