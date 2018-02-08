@@ -77,7 +77,7 @@ sub HusqvarnaAutomower_Initialize($) {
 
     foreach my $d(sort keys %{$modules{HusqvarnaAutomower}{defptr}}) {
         my $hash = $modules{HusqvarnaAutomower}{defptr}{$d};
-        $hash->{VERSION} = $version;
+        $hash->{HusqvarnaAutomower}{version} = $version;
     }
 
 }
@@ -238,7 +238,46 @@ sub HusqvarnaAutomower_Undef($$){
 }
 
 
-sub HusqvarnaAutomower_Set($@){}
+sub HusqvarnaAutomower_Set($@){
+	my ($hash,@a) = @_;
+    return "\"set $hash->{NAME}\" needs at least an argument" if ( @a < 2 );
+    my ($name,$setName,$setVal,$setVal2,$setVal3) = @a;
+
+	Log3 $name, 3, "$name: set called with $setName " . ($setVal ? $setVal : "") if ($setName ne "?");
+
+	if (HusqvarnaAutomower_CONNECTED($hash) eq 'disabled' && $setName !~ /clear/) {
+        return "Unknown argument $setName, choose one of clear:all,readings";
+        Log3 $name, 3, "$name: set called with $setName but device is disabled!" if ($setName ne "?");
+        return undef;
+    }
+
+    if ($setName !~ /start|stop|pause|update/) {
+        return "Unknown argument $setName, choose one of start stop pause update";
+	}
+	
+	if ($setName eq 'update') {
+        RemoveInternalTimer($hash);
+        HusqvarnaAutomower_DoUpdate($hash);
+    }
+    
+	if (HusqvarnaAutomower_CONNECTED($hash)) {
+
+	    if ($setName eq 'start') {
+		    
+		    
+	    } elsif ($setName eq 'stop') {
+		    
+		    
+	    } elsif ($setName eq 'pause') {
+		    
+		    
+	    }
+
+	}
+	
+    return undef;
+
+}
 
 
 ##############################################################
@@ -250,9 +289,11 @@ sub HusqvarnaAutomower_Set($@){}
 sub HusqvarnaAutomower_APIAuth($) {
     my ($hash, $def) = @_;
     my $name = $hash->{NAME};
+    
     my $username = $hash->{HusqvarnaAutomower}->{username};
     my $password = $hash->{HusqvarnaAutomower}->{password};
     
+    my $header = "Content-Type: application/json\r\nAccept: application/json";
     my $json = '	{
     		"data" : {
     			"type" : "token",
@@ -268,7 +309,7 @@ sub HusqvarnaAutomower_APIAuth($) {
         timeout    	=> 5,
         hash       	=> $hash,
         method     	=> "POST",
-        header     	=> "Content-Type: application/json\r\nAccept: application/json",  
+        header     	=> $header,  
 		data 		=> $json,
         callback   	=> \&HusqvarnaAutomower_APIAuthResponse,
     });  
@@ -434,13 +475,74 @@ sub HusqvarnaAutomower_getMowerResponse($) {
 		}
 		
 		readingsSingleUpdate($hash, "device_id", $hash->{HusqvarnaAutomower}->{device_id}, 1);    
-
 	    
 	}	
 	
 	return undef;
 
 }
+
+
+##############################################################
+#
+# SEND COMMAND
+#
+##############################################################
+
+sub HusqvarnaAutomower_CMD($) {
+    my ($hash, $def) = @_;
+    my $name = $hash->{NAME};
+    
+    # valid commands ['PARK', 'STOP', 'START']
+    	my $token = $hash->{HusqvarnaAutomower}->{token};
+	my $provider = $hash->{HusqvarnaAutomower}->{provider};
+    my $device_id = $hash->{HusqvarnaAutomower}->{device_id};
+
+	my $header = "Content-Type: application/json\r\nAccept: application/json\r\nAuthorization: Bearer " . $token . "\r\nAuthorization-Provider: " . $provider;
+
+    my $json = '{
+    		"action": "START"
+    }';
+
+    HttpUtils_NonblockingGet({
+        url        	=> APIURL . "mowers/". $device_id . "/control",
+        timeout    	=> 5,
+        hash       	=> $hash,
+        method     	=> "POST",
+        header     	=> $header,
+		data 		=> $json,
+        callback   	=> \&HusqvarnaAutomower_CMDResponse,
+    });  
+    
+}
+
+
+sub HusqvarnaAutomower_CMDResponse($) {
+    my ($param, $err, $data) = @_;
+    my $hash = $param->{hash};
+    my $name = $hash->{NAME};
+
+    if($err ne "") {
+	    HusqvarnaAutomower_CONNECTED($hash,'error');
+        Log3 $name, 5, "error while requesting ".$param->{url}." - $err";     
+                                           
+    } elsif($data ne "") {
+	    
+	    my $result = decode_json($data);
+	    if ($result->{errors}) {
+		    HusqvarnaAutomower_CONNECTED($hash,'error');
+		    Log3 $name, 5, "Error: " . $result->{errors}[0]->{detail};
+		    
+	    } else {
+	        Log3 $name, 5, "$data"; 
+
+			
+	    }
+        
+    }
+
+}
+
 
 ###############################################################################
 
