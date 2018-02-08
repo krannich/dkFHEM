@@ -573,6 +573,21 @@ td > .makeSelect > form > input {
 	font-size: 1rem;				
 }
 
+/* UI WIDGET & OVERLAYS ----------- */
+
+.ui-widget-overlay {
+	background: rgb(0,0,0) !important;
+	opacity: 0.666 !important;
+}
+
+.ui-widget-header {
+	background: #268edf !important;	
+	border: none !important;
+}
+
+.ui-widget-content {
+	background: #fff !important;
+}
 
 /* Smartphones (landscape) ----------- */
 @media only screen 
