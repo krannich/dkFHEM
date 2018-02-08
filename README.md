@@ -7,7 +7,7 @@ https://blog.krannich.de
 *(!) Dieses Modul befindet sich noch in der Entwicklung.*
 
 
-## dkStyles und dk.js
+## dkStyles.css und dk.js
 Erhalte mehr Struktur und  Überblick mit dkStyles.css und dk.js.
 
 https://blog.krannich.de/2017/02/neue-visualisierung-fuer-fhem/
