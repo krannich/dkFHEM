@@ -57,6 +57,7 @@ sub HusqvarnaAutomower_Set($@);
 sub HusqvarnaAutomower_Undef($$);
 
 sub HusqvarnaAutomower_CONNECTED($@);
+sub HusqvarnaAutomower_CMD($$);
 
 
 ##############################################################
@@ -212,7 +213,7 @@ sub HusqvarnaAutomower_Attr(@) {
 		    Log3 $name, 5, "$name - mower set to " . $hash->{HusqvarnaAutomower}->{mower};	
 		}
 		elsif( $cmd eq "del" ) {
-            $hash->{HusqvarnaAutomower}->{mower}   = 0;
+            $hash->{HusqvarnaAutomower}->{mower} = 0;
             Log3 $name, 5, "$name - deleted mower and set to default: 0";
         }
 
@@ -261,8 +262,8 @@ sub HusqvarnaAutomower_Set($@){
         return undef;
     }
 
-    if ($setName !~ /start|stop|pause|update/) {
-        return "Unknown argument $setName, choose one of start stop pause update";
+    if ($setName !~ /start|stop|park|update/) {
+        return "Unknown argument $setName, choose one of start stop park update";
 	}
 	
 	if ($setName eq 'update') {
@@ -273,13 +274,13 @@ sub HusqvarnaAutomower_Set($@){
 	if (HusqvarnaAutomower_CONNECTED($hash)) {
 
 	    if ($setName eq 'start') {
-		    
+		    HusqvarnaAutomower_CMD($hash,'START');
 		    
 	    } elsif ($setName eq 'stop') {
+		    HusqvarnaAutomower_CMD($hash,'STOP');
 		    
-		    
-	    } elsif ($setName eq 'pause') {
-		    
+	    } elsif ($setName eq 'park') {
+		    HusqvarnaAutomower_CMD($hash,'PARK');
 		    
 	    }
 
@@ -356,7 +357,9 @@ sub HusqvarnaAutomower_APIAuthResponse($) {
 			readingsBulkUpdate($hash,'token',$hash->{HusqvarnaAutomower}->{token} );
 			readingsBulkUpdate($hash,'provider',$hash->{HusqvarnaAutomower}->{provider} );
 			readingsBulkUpdate($hash,'user_id',$hash->{HusqvarnaAutomower}->{user_id} );
-			readingsBulkUpdate($hash,'expires',$hash->{HusqvarnaAutomower}->{expires} );
+			
+			my $expire_date = strftime("%Y-%m-%d %H:%M:%S", localtime($hash->{HusqvarnaAutomower}->{expires}));
+			readingsBulkUpdate($hash,'expires',$expire_date );
 			readingsEndUpdate($hash, 1);
 			
 			HusqvarnaAutomower_CONNECTED($hash,'authenticated');
@@ -490,6 +493,7 @@ sub HusqvarnaAutomower_getMowerResponse($) {
 			$hash->{HusqvarnaAutomower}->{mower_battery} = $mymowerStatus->{'batteryLevel'};
 			$hash->{HusqvarnaAutomower}->{mower_status} = $mymowerStatus->{'mowerStatus'};
 			$hash->{HusqvarnaAutomower}->{mower_mode} = $mymowerStatus->{'operatingMode'};
+			
 			$hash->{HusqvarnaAutomower}->{mower_nextStart} = $mymowerStatus->{'nextStartTimestamp'};
 
 			HusqvarnaAutomower_CONNECTED($hash,'connected');
@@ -503,7 +507,10 @@ sub HusqvarnaAutomower_getMowerResponse($) {
 		readingsBulkUpdate($hash, "mower_battery", $hash->{HusqvarnaAutomower}->{mower_battery} );    
 		readingsBulkUpdate($hash, "mower_status", $hash->{HusqvarnaAutomower}->{mower_status} );    
 		readingsBulkUpdate($hash, "mower_mode", $hash->{HusqvarnaAutomower}->{mower_mode} );    
-		readingsBulkUpdate($hash, "mower_nextStart", $hash->{HusqvarnaAutomower}->{mower_nextStart} );    
+		
+		my $nextStartTimestamp = strftime("%Y-%m-%d %H:%M:%S", localtime($hash->{HusqvarnaAutomower}->{mower_nextStart}));
+		readingsBulkUpdate($hash, "mower_nextStart", $nextStartTimestamp );  
+		  
 		readingsEndUpdate($hash, 1);
  	    
 	}	
@@ -560,8 +567,11 @@ sub HusqvarnaAutomower_getMowerStatusResponse($) {
 		#readingsBulkUpdate($hash,$reading,$value);
 		readingsBulkUpdate($hash, "mower_battery", $hash->{HusqvarnaAutomower}->{mower_battery} );    
 		readingsBulkUpdate($hash, "mower_status", $hash->{HusqvarnaAutomower}->{mower_status} );    
-		readingsBulkUpdate($hash, "mower_mode", $hash->{HusqvarnaAutomower}->{mower_mode} );    
-		readingsBulkUpdate($hash, "mower_nextStart", $hash->{HusqvarnaAutomower}->{mower_nextStart} );    
+		readingsBulkUpdate($hash, "mower_mode", $hash->{HusqvarnaAutomower}->{mower_mode} );  
+		
+		my $nextStartTimestamp = strftime("%Y-%m-%d %H:%M:%S", localtime($hash->{HusqvarnaAutomower}->{mower_nextStart}));
+		readingsBulkUpdate($hash, "mower_nextStart", $nextStartTimestamp );  
+  
 		readingsBulkUpdate($hash, "mower_lastLatitude", $hash->{HusqvarnaAutomower}->{mower_lastLatitude} );    
 		readingsBulkUpdate($hash, "mower_lastLongitude", $hash->{HusqvarnaAutomower}->{mower_lastLongitude} );    
 		readingsEndUpdate($hash, 1);
@@ -579,8 +589,9 @@ sub HusqvarnaAutomower_getMowerStatusResponse($) {
 #
 ##############################################################
 
-sub HusqvarnaAutomower_CMD($) {
-    my ($hash, $def) = @_;
+sub HusqvarnaAutomower_CMD($$) {
+    #my ($hash, $def) = @_;
+    my ($hash,$cmd) = @_;
     my $name = $hash->{NAME};
     
     # valid commands ['PARK', 'STOP', 'START']
@@ -589,10 +600,9 @@ sub HusqvarnaAutomower_CMD($) {
     my $mower_id = $hash->{HusqvarnaAutomower}->{mower_id};
 
 	my $header = "Content-Type: application/json\r\nAccept: application/json\r\nAuthorization: Bearer " . $token . "\r\nAuthorization-Provider: " . $provider;
-
-    my $json = '{
-    		"action": "START"
-    }';
+    
+    Log3 $name, 3, "cmd: " . $cmd;     
+    my $json = '{"action": ' . $cmd . '}';
 
     HttpUtils_NonblockingGet({
         url        	=> APIURL . "mowers/". $mower_id . "/control",
@@ -614,17 +624,17 @@ sub HusqvarnaAutomower_CMDResponse($) {
 
     if($err ne "") {
 	    HusqvarnaAutomower_CONNECTED($hash,'error');
-        Log3 $name, 5, "error while requesting ".$param->{url}." - $err";     
+        Log3 $name, 3, "error while requesting ".$param->{url}." - $err";     
                                            
     } elsif($data ne "") {
 	    
 	    my $result = decode_json($data);
 	    if ($result->{errors}) {
 		    HusqvarnaAutomower_CONNECTED($hash,'error');
-		    Log3 $name, 5, "Error: " . $result->{errors}[0]->{detail};
+		    Log3 $name, 3, "Error: " . $result->{errors}[0]->{detail};
 		    
 	    } else {
-	        Log3 $name, 5, "$data"; 
+	        Log3 $name, 3, "$data"; 
 
 			
 	    }
