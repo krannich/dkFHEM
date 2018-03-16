@@ -421,7 +421,6 @@ sub HusqvarnaAutomower_DoUpdate($) {
         InternalTimer( time() + $hash->{HusqvarnaAutomower}->{interval}, $self, $hash, 0 );
 
 	} 
-    
 
 }
 
@@ -656,22 +655,71 @@ sub HusqvarnaAutomower_Whowasi() { return (split('::',(caller(2))[3]))[1] || '';
 =pod
 
 =item device
-=item summary    Modul to control Husqvarna Automower with Connect Module
-=item summary_DE Modul zur Steuerung von Husqvarna Automower mit Connect Modul
+=item summary    Modul to control Husqvarna Automower with Connect Module (SIM)
+=item summary_DE Modul zur Steuerung von Husqvarna Automower mit Connect Modul (SIM)
 
 =begin html
 
 <a name="HusqvarnaAutomower"></a>
-<h3>Husqvarna Automower with Connect Module</h3>
+<h3>Husqvarna Automower with Connect Module (SIM)</h3>
 <ul>
-  <u><b>Voraussetzungen</b></u>
-  <br><br>
-  <li>Dieses FHEM Modul ermöglicht die Kommunikation zwischen der HusqvarnaCloud und FHEM. Es kann damit jeder Automower, das über ein original Husqvarna Connect-Modul verfügt, überwacht und gesteuert werden.</li>
-  <li>Der Automower muss vorab in der Husqvarna App eingerichtet sein.</li>
+	<u><b>Requirements</b></u>
+  	<br><br>
+	<ul>
+		<li>This module allows the communication between the Husqvarna Cloud and FHEM.</li>
+		<li>You can control any Automower that is equipped with the original Husqvarna Connect Module (SIM).</li>
+  		<li>The Automower must be registered in the Husqvarna App beforehand.</li>
+  	</ul>
+	<br>
+	
+	<a name="HusqvarnaAutomowerdefine"></a>
+	<b>Define</b>
+	<ul>
+		<code>define &lt;name&gt; HusqvarnaAutomower</code>
+		<br><br>
+		Beispiel:
+		<ul><br>
+			<code>define myMower HusqvarnaAutomower<br>
+			attr myMower username YOUR_USERNAME<br>
+			attr myMower password YOUR_PASSWORD
+			</code><br>
+		</ul>
+		<br><br>
+		You must set both attributes <b>username</b> and <b>password</b>. These are the same that you use to login via the Husqvarna app.
+	</ul>
+	<br>
+	
+	<a name="HusqvarnaAutomowerattributes"></a>
+	<b>Attributes</b>
+	<ul>
+		<li>username - Email that is used in Husqvarna App</li>
+		<li>password - Password that is used in Husqvarna App</li>
+		<li>mower - (optional) Automower, if more that one is registered (e. g. 1)</li>
+	</ul>
+	<br>
+
+	<a name="HusqvarnaAutomowerreadings"></a>
+	<b>Readings</b>
+	<ul>
+		<li>expires - date when session of Husqvarna Cloud expires</li>
+		<li>mower_id - ID of the mower</li>
+		<li>mower_lastLatitude - last known position (latitude)</li>
+		<li>mower_lastLongitude - last known position (longitude)</li>
+		<li>mower_mode - current working mode (e. g. AUTO)</li>
+		<li>mower_name - name of the mower</li>
+		<li>mower_nextStart - next start time</li>
+		<li>mower_status - current status (e. g. OFF_HATCH_CLOSED_DISABLED)</li>
+		<li>provider - should be Husqvarna</li>
+		<li>state - status of connection to Husqvarna Cloud (e. g. connected)</li>
+		<li>token - current session token of Husqvarna Cloud</li>
+		<li>user_id - your user ID in Husqvarna Cloud</li>
+	</ul>
+
 </ul>
 
-
 =end html
+
+
 
 =begin html_DE
 
@@ -680,38 +728,58 @@ sub HusqvarnaAutomower_Whowasi() { return (split('::',(caller(2))[3]))[1] || '';
 <ul>
 	<u><b>Voraussetzungen</b></u>
 	<br><br>
-	Dieses FHEM Modul ermöglicht die Kommunikation zwischen der HusqvarnaCloud und FHEM.<br>
-	Es kann damit jeder Automower, das über ein original Husqvarna Connect-Modul verfügt, überwacht und gesteuert werden.</li>
-	<br>Der Automower muss vorab in der Husqvarna App eingerichtet sein.</li>
-</ul>
-<br>
-<a name="HusqvarnaAutomowerdefine"></a>
-<b>Define</b>
-<ul><br>
-	<code>define &lt;name&gt; HusqvarnaAutomower</code>
-	<br><br>
-	Beispiel:
-	<ul><br>
-		<code>define myMower HusqvarnaAutomower</code><br>
+	<ul>
+		<li>Dieses Modul ermöglicht die Kommunikation zwischen der Husqvarna Cloud und FHEM.</li>
+		<li>Es kann damit jeder Automower, der über ein original Husqvarna Connect Modul (SIM) verfügt, überwacht und gesteuert werden.</li>
+		<li>Der Automower muss vorab in der Husqvarna App eingerichtet sein.</li>
 	</ul>
-</ul>
-<br>
-<a name="HusqvarnaAutomowerreadings"></a>
-<b>Readings</b>
-<ul>
-	<li>address - Adresse, welche in der App eingetragen wurde (Langversion)</li>
-	<li>authorized_user_ids - </li>
-	<li>city - PLZ, Stadt</li>
-	<li>devices - Anzahl der Ger&auml;te, welche in der GardenaCloud angemeldet sind (Gateway z&auml;hlt mit)</li>
-	<li>lastRequestState - Letzter abgefragter Status der Bridge</li>
-	<li>latitude - Breitengrad des Grundst&uuml;cks</li>
-	<li>longitude - Längengrad des Grundst&uuml;cks</li>
-	<li>name - Name für das Grundst&uuml;ck – Default „My Garden“</li>
-	<li>state - Status der Bridge</li>
-	<li>token - SessionID</li>
-	<li>zones - </li>
-</ul>
+	<br>
+	
+	<a name="HusqvarnaAutomowerdefine"></a>
+	<b>Define</b>
+	<ul>
+		<br>
+		<code>define &lt;name&gt; HusqvarnaAutomower</code>
+		<br><br>
+		Beispiel:
+		<ul><br>
+			<code>define myMower HusqvarnaAutomower<br>
+			attr myMower username YOUR_USERNAME<br>
+			attr myMower password YOUR_PASSWORD
+			</code><br>
+		</ul>
+		<br><br>
+		Es müssen die beiden Attribute <b>username</b> und <b>password</b> gesetzt werden. Diese sind identisch mit den Logindaten der Husqvarna App.
+	</ul>
+	<br>
+	
+	<a name="HusqvarnaAutomowerattributes"></a>
+	<b>Attributes</b>
+	<ul>
+		<li>username - Email, die in der Husqvarna App verwendet wird</li>
+		<li>password - Passwort, das in der Husqvarna App verwendet wird</li>
+		<li>mower - (optional) Automower, sofern mehrere registriert sind (z. B. 1)</li>
+	</ul>
+	<br>
+	
+	<a name="HusqvarnaAutomowerreadings"></a>
+	<b>Readings</b>
+	<ul>
+		<li>expires - Datum wann die Session der Husqvarna Cloud abläuft</li>
+		<li>mower_id - ID des Automowers</li>
+		<li>mower_lastLatitude - letzte bekannte Position (Breitengrad)</li>
+		<li>mower_lastLongitude - letzte bekannte Position (Längengrad)</li>
+		<li>mower_mode - aktueller Arbeitsmodus (e. g. AUTO)</li>
+		<li>mower_name - Name des Automowers</li>
+		<li>mower_nextStart - nächste Startzeit</li>
+		<li>mower_status - aktueller Status (e. g. OFF_HATCH_CLOSED_DISABLED)</li>
+		<li>provider - Sollte immer Husqvarna sein</li>
+		<li>state - Status der Verbindung zur Husqvarna Cloud (e. g. connected)</li>
+		<li>token - aktueller Sitzungstoken für die Husqvarna Cloud</li>
+		<li>user_id - Nutzer-ID in der Husqvarna Cloud</li>
+	</ul>
 
+</ul>
 
 
 =end html_DE
