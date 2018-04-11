@@ -492,8 +492,9 @@ sub HusqvarnaAutomower_getMowerResponse($) {
 			$hash->{HusqvarnaAutomower}->{mower_battery} = $mymowerStatus->{'batteryPercent'};
 			$hash->{HusqvarnaAutomower}->{mower_status} = $mymowerStatus->{'mowerStatus'};
 			$hash->{HusqvarnaAutomower}->{mower_mode} = $mymowerStatus->{'operatingMode'};
+		
+			$hash->{HusqvarnaAutomower}->{mower_nextStart} = HusqvarnaAutomower_Correct_Localtime( $mymowerStatus->{'nextStartTimestamp'} );
 			
-			$hash->{HusqvarnaAutomower}->{mower_nextStart} = $mymowerStatus->{'nextStartTimestamp'};
 			HusqvarnaAutomower_CONNECTED($hash,'connected');
 
 		}
@@ -505,13 +506,8 @@ sub HusqvarnaAutomower_getMowerResponse($) {
 		readingsBulkUpdate($hash, "mower_battery", $hash->{HusqvarnaAutomower}->{mower_battery} );    
 		readingsBulkUpdate($hash, "mower_status", $hash->{HusqvarnaAutomower}->{mower_status} );    
 		readingsBulkUpdate($hash, "mower_mode", $hash->{HusqvarnaAutomower}->{mower_mode} );    
-		
-		$ENV{TZ} = 'Europe/Berlin';
-		tzset();
 
-		my $nextStartTimestamp = strftime("%Y-%m-%d %H:%M:%S", localtime($hash->{HusqvarnaAutomower}->{mower_nextStart}));
-		my $nextStartTimestamp_GMT = strftime("%Y-%m-%d %H:%M:%S", gmtime($hash->{HusqvarnaAutomower}->{mower_nextStart}));
-				
+		my $nextStartTimestamp = strftime("%Y-%m-%d %H:%M:%S", localtime($hash->{HusqvarnaAutomower}->{mower_nextStart}) );
 		readingsBulkUpdate($hash, "mower_nextStart", $nextStartTimestamp );  
 		  
 		readingsEndUpdate($hash, 1);
@@ -520,6 +516,28 @@ sub HusqvarnaAutomower_getMowerResponse($) {
 	
 	return undef;
 
+}
+
+sub HusqvarnaAutomower_Zulu2LocalString($) {
+
+    my $t = shift;
+    my ($datehour,$datemin,$rest) = split(/:/,$t,3);
+
+    my ($year, $month, $day, $hour,$min) = $datehour =~ /(\d+)-(\d\d)-(\d\d)T(\d\d)/;
+    my $epoch = timegm (0,0,$hour,$day,$month-1,$year);
+
+    my ($lyear,$lmonth,$lday,$lhour,$isdst) = (localtime($epoch))[5,4,3,2,-1];
+
+    $lyear += 1900;  # year is 1900 based
+    $lmonth++;       # month number is zero based
+
+    if( defined($rest) ) {
+        return ( sprintf("%04d-%02d-%02d %02d:%02d:%s",$lyear,$lmonth,$lday,$lhour,$datemin,substr($rest,0,2)));
+    } elsif( $lyear < 2000 ) {
+        return "illegal year";
+    } else {
+        return ( sprintf("%04d-%02d-%02d %02d:%02d",$lyear,$lmonth,$lday,$lhour,substr($datemin,0,2)));
+    }
 }
 
 
@@ -562,7 +580,9 @@ sub HusqvarnaAutomower_getMowerStatusResponse($) {
 		$hash->{HusqvarnaAutomower}->{mower_battery} = $result->{'batteryPercent'};
 		$hash->{HusqvarnaAutomower}->{mower_status} = $result->{'mowerStatus'};
 		$hash->{HusqvarnaAutomower}->{mower_mode} = $result->{'operatingMode'};
-		$hash->{HusqvarnaAutomower}->{mower_nextStart} = $result->{'nextStartTimestamp'};
+		
+		$hash->{HusqvarnaAutomower}->{mower_nextStart} = HusqvarnaAutomower_Correct_Localtime( $result->{'nextStartTimestamp'} );
+		
 		$hash->{HusqvarnaAutomower}->{mower_lastLatitude} = $result->{'lastLocations'}->[0]->{'latitude'};
 		$hash->{HusqvarnaAutomower}->{mower_lastLongitude} = $result->{'lastLocations'}->[0]->{'longitude'};
 
@@ -571,13 +591,8 @@ sub HusqvarnaAutomower_getMowerStatusResponse($) {
 		readingsBulkUpdate($hash, "mower_battery", $hash->{HusqvarnaAutomower}->{mower_battery} );    
 		readingsBulkUpdate($hash, "mower_status", $hash->{HusqvarnaAutomower}->{mower_status} );    
 		readingsBulkUpdate($hash, "mower_mode", $hash->{HusqvarnaAutomower}->{mower_mode} );  
-		
-		
-		$ENV{TZ} = 'Europe/Berlin';
-		tzset();
-		
+
 		my $nextStartTimestamp = strftime("%Y-%m-%d %H:%M:%S", localtime($hash->{HusqvarnaAutomower}->{mower_nextStart}));
-		my $nextStartTimestamp_GMT = strftime("%Y-%m-%d %H:%M:%S", gmtime($hash->{HusqvarnaAutomower}->{mower_nextStart}));
 				
 		readingsBulkUpdate($hash, "mower_nextStart", $nextStartTimestamp );  
   
@@ -654,6 +669,20 @@ sub HusqvarnaAutomower_CMDResponse($) {
 
 
 ###############################################################################
+
+sub HusqvarnaAutomower_Correct_Localtime($) {
+	
+	my ($time) = @_;
+	my ($dst) = (localtime)[8]; # fetch daylight savings time flag
+
+	if ($dst) {
+		return $time - ( 2 * 3600 );
+	} else {
+		return $time - ( 1 * 3600 );
+	}
+	
+}
+
 
 sub HusqvarnaAutomower_Whoami()  { return (split('::',(caller(1))[3]))[1] || ''; }
 sub HusqvarnaAutomower_Whowasi() { return (split('::',(caller(2))[3]))[1] || ''; }
