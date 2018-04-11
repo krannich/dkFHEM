@@ -103,7 +103,7 @@ sub HusqvarnaAutomower_Define($$){
             mower_id				=> '',
             mower_name				=> '',
             mower_model 			=> '',
-            mower_batteryLevel 		=> 0,
+            mower_battery 			=> 0,
             mower_status 		 	=> '',
             mower_lastLatitude 		=> 0,
             mower_lastLongitude 	=> 0,
@@ -489,12 +489,11 @@ sub HusqvarnaAutomower_getMowerResponse($) {
 
 			# MOWER STATUS
 		    my $mymowerStatus = $mymower->{'status'};
-			$hash->{HusqvarnaAutomower}->{mower_battery} = $mymowerStatus->{'batteryLevel'};
+			$hash->{HusqvarnaAutomower}->{mower_battery} = $mymowerStatus->{'batteryPercent'};
 			$hash->{HusqvarnaAutomower}->{mower_status} = $mymowerStatus->{'mowerStatus'};
 			$hash->{HusqvarnaAutomower}->{mower_mode} = $mymowerStatus->{'operatingMode'};
 			
 			$hash->{HusqvarnaAutomower}->{mower_nextStart} = $mymowerStatus->{'nextStartTimestamp'};
-
 			HusqvarnaAutomower_CONNECTED($hash,'connected');
 
 		}
@@ -507,7 +506,12 @@ sub HusqvarnaAutomower_getMowerResponse($) {
 		readingsBulkUpdate($hash, "mower_status", $hash->{HusqvarnaAutomower}->{mower_status} );    
 		readingsBulkUpdate($hash, "mower_mode", $hash->{HusqvarnaAutomower}->{mower_mode} );    
 		
+		$ENV{TZ} = 'Europe/Berlin';
+		tzset();
+
 		my $nextStartTimestamp = strftime("%Y-%m-%d %H:%M:%S", localtime($hash->{HusqvarnaAutomower}->{mower_nextStart}));
+		my $nextStartTimestamp_GMT = strftime("%Y-%m-%d %H:%M:%S", gmtime($hash->{HusqvarnaAutomower}->{mower_nextStart}));
+				
 		readingsBulkUpdate($hash, "mower_nextStart", $nextStartTimestamp );  
 		  
 		readingsEndUpdate($hash, 1);
@@ -554,8 +558,8 @@ sub HusqvarnaAutomower_getMowerStatusResponse($) {
 	    
 		Log3 $name, 5, $data; 
 		my $result = decode_json($data);
-
-		$hash->{HusqvarnaAutomower}->{mower_battery} = $result->{'batteryLevel'};
+		
+		$hash->{HusqvarnaAutomower}->{mower_battery} = $result->{'batteryPercent'};
 		$hash->{HusqvarnaAutomower}->{mower_status} = $result->{'mowerStatus'};
 		$hash->{HusqvarnaAutomower}->{mower_mode} = $result->{'operatingMode'};
 		$hash->{HusqvarnaAutomower}->{mower_nextStart} = $result->{'nextStartTimestamp'};
@@ -568,7 +572,13 @@ sub HusqvarnaAutomower_getMowerStatusResponse($) {
 		readingsBulkUpdate($hash, "mower_status", $hash->{HusqvarnaAutomower}->{mower_status} );    
 		readingsBulkUpdate($hash, "mower_mode", $hash->{HusqvarnaAutomower}->{mower_mode} );  
 		
+		
+		$ENV{TZ} = 'Europe/Berlin';
+		tzset();
+		
 		my $nextStartTimestamp = strftime("%Y-%m-%d %H:%M:%S", localtime($hash->{HusqvarnaAutomower}->{mower_nextStart}));
+		my $nextStartTimestamp_GMT = strftime("%Y-%m-%d %H:%M:%S", gmtime($hash->{HusqvarnaAutomower}->{mower_nextStart}));
+				
 		readingsBulkUpdate($hash, "mower_nextStart", $nextStartTimestamp );  
   
 		readingsBulkUpdate($hash, "mower_lastLatitude", $hash->{HusqvarnaAutomower}->{mower_lastLatitude} );    
