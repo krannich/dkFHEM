@@ -518,28 +518,6 @@ sub HusqvarnaAutomower_getMowerResponse($) {
 
 }
 
-sub HusqvarnaAutomower_Zulu2LocalString($) {
-
-    my $t = shift;
-    my ($datehour,$datemin,$rest) = split(/:/,$t,3);
-
-    my ($year, $month, $day, $hour,$min) = $datehour =~ /(\d+)-(\d\d)-(\d\d)T(\d\d)/;
-    my $epoch = timegm (0,0,$hour,$day,$month-1,$year);
-
-    my ($lyear,$lmonth,$lday,$lhour,$isdst) = (localtime($epoch))[5,4,3,2,-1];
-
-    $lyear += 1900;  # year is 1900 based
-    $lmonth++;       # month number is zero based
-
-    if( defined($rest) ) {
-        return ( sprintf("%04d-%02d-%02d %02d:%02d:%s",$lyear,$lmonth,$lday,$lhour,$datemin,substr($rest,0,2)));
-    } elsif( $lyear < 2000 ) {
-        return "illegal year";
-    } else {
-        return ( sprintf("%04d-%02d-%02d %02d:%02d",$lyear,$lmonth,$lday,$lhour,substr($datemin,0,2)));
-    }
-}
-
 
 sub HusqvarnaAutomower_getMowerStatus($) {
 	my ($hash) = @_;
@@ -625,8 +603,8 @@ sub HusqvarnaAutomower_CMD($$) {
 
 	my $header = "Content-Type: application/json\r\nAccept: application/json\r\nAuthorization: Bearer " . $token . "\r\nAuthorization-Provider: " . $provider;
     
-    Log3 $name, 3, "cmd: " . $cmd;     
-    my $json = '{"action": ' . $cmd . '}';
+    Log3 $name, 5, "cmd: " . $cmd;     
+    my $json = '{"action": "' . $cmd . '"}';
 
     HttpUtils_NonblockingGet({
         url        	=> APIURL . "mowers/". $mower_id . "/control",
@@ -648,17 +626,17 @@ sub HusqvarnaAutomower_CMDResponse($) {
 
     if($err ne "") {
 	    HusqvarnaAutomower_CONNECTED($hash,'error');
-        Log3 $name, 3, "error while requesting ".$param->{url}." - $err";     
+        Log3 $name, 5, "error while requesting ".$param->{url}." - $err";     
                                            
     } elsif($data ne "") {
 	    
 	    my $result = decode_json($data);
 	    if ($result->{errors}) {
 		    HusqvarnaAutomower_CONNECTED($hash,'error');
-		    Log3 $name, 3, "Error: " . $result->{errors}[0]->{detail};
+		    Log3 $name, 5, "Error: " . $result->{errors}[0]->{detail};
 		    
 	    } else {
-	        Log3 $name, 3, "$data"; 
+	        Log3 $name, 5, $data; 
 
 			
 	    }
