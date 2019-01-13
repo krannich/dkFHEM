@@ -1,5 +1,5 @@
 /*
-Version: 2018-02-08
+Version: 2018-04-27
 */
 
 @font-face {
@@ -38,6 +38,7 @@ Version: 2018-02-08
 
 body {
 	background-color: #f0eee6;
+	/*background-color: #f7f9fb;*/
 	text-rendering: optimizeLegibility;
 	-webkit-font-smoothing: antialiased;
 }
@@ -153,20 +154,33 @@ a {
 	text-decoration: none;
 }
 
-	
-a :hover,
-a:hover {
-	color: #268edf;
-}
 
+a :hover,
+a:hover,
 a :active,
 a:active {
 	color: #268edf;
 }
 
-a.selected:hover,
-a.selected :hover {
+a.navitem.selected:hover,
+a.navitem.selected :hover,
+a.selected.open:hover,
+a.selected.open :hover,
+.subnav.open a.selected:hover,
+.subnav.open a.selected :hover {
 	color: #fff;
+}
+
+a.navitem.with_sub.selected:hover,
+a.navitem.with_sub.selected :hover
+{
+    color: #000;
+}
+
+a.navitem.with_sub.open.selected:hover,
+a.navitem.with_sub.open.selected :hover
+{
+	color: #268edf;
 }
 
 /*-------------------------*/
@@ -217,7 +231,7 @@ pre a {
 
 #content table.block.wide td:nth-child(1n+3) {
 	text-align: left;
-	display: block;
+	/*display: block;*/
 	clear: both;
 	padding-bottom: 0;
 	color: #666;
