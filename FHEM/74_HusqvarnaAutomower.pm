@@ -19,7 +19,7 @@
 #  GNU General Public License for more details.
 #
 #
-# $Id: 74_HusqvarnaAutomower.pm 19169 2019-04-13 12:05:26Z krannich $
+# $Id: 74_HusqvarnaAutomower.pm 19200 2019-04-16 18:39:00Z krannich $
 #  
 ################################################################################
 
@@ -36,7 +36,7 @@ use Blocking;
 
 eval "use JSON;1" or $missingModul .= "JSON ";
 
-my $version = "0.5.1";
+my $version = "0.5.2";
 
 use constant AUTHURL => "https://iam-api.dss.husqvarnagroup.net/api/v3/";
 use constant APIURL => "https://amc-api.dss.husqvarnagroup.net/app/v1/";
@@ -115,13 +115,24 @@ sub HusqvarnaAutomower_Define($$){
             mower_nextStart 			=> 0,
             mower_nextStartSource 	=> '',
             mower_restrictedReason	=> '',
-            mower 				    => 0,
-            batteryPercent          => 0,
-            username 				=> '',
-            language 				=> 'DE',
-            password 				=> '',
-            interval    				=> 300,
-            expires 					=> time(),
+            mower							=> 0,
+            batteryPercent					=> 0,
+            username 						=> '',
+            language 						=> 'DE',
+            password 						=> '',
+            interval    					=> 300,
+            expires 						=> time(),
+			mower_geofence					=> '',
+			mower_headlights				=> '',
+			mower_searchChargingStation		=> '',
+			mower_fota						=> '',
+			mower_gpsNavigation				=> '',
+			mower_weatherTimer				=> '',
+			mower_corridorWidth				=> '',
+			mower_connected					=> '',
+			mower_lastErrorCode				=> '',
+			mower_lastErrorCodeTimestamp	=> '',
+			mower_errorConfirmable			=> '',
         },
     );
 	
@@ -510,7 +521,17 @@ sub HusqvarnaAutomower_getMowerResponse($) {
 			$hash->{HusqvarnaAutomower}->{mower_mode} = $mymowerStatus->{'operatingMode'};
 		
 			$hash->{HusqvarnaAutomower}->{mower_nextStart} = HusqvarnaAutomower_Correct_Localtime( $mymowerStatus->{'nextStartTimestamp'} );
-						
+
+			# MOWER capabilities
+			my $mymowerCapabilities = $mymower->{'capabilities'};
+			$hash->{HusqvarnaAutomower}->{mower_geofence} = $mymowerCapabilities->{'geofence'};
+			$hash->{HusqvarnaAutomower}->{mower_headlights} = $mymowerCapabilities->{'headlights'};
+			$hash->{HusqvarnaAutomower}->{mower_searchChargingStation} = $mymowerCapabilities->{'searchChargingStation'};
+			$hash->{HusqvarnaAutomower}->{mower_fota} = $mymowerCapabilities->{'fota'};
+			$hash->{HusqvarnaAutomower}->{mower_gpsNavigation} = $mymowerCapabilities->{'gpsNavigation'};
+			$hash->{HusqvarnaAutomower}->{mower_weatherTimer} = $mymowerCapabilities->{'weatherTimer'};
+			$hash->{HusqvarnaAutomower}->{mower_corridorWidth} = $mymowerCapabilities->{'corridorWidth'};
+
 			HusqvarnaAutomower_CONNECTED($hash,'connected');
 
 		}
@@ -525,7 +546,15 @@ sub HusqvarnaAutomower_getMowerResponse($) {
 		readingsBulkUpdate($hash, "mower_mode", HusqvarnaAutomower_ToGerman($hash, $hash->{HusqvarnaAutomower}->{mower_mode} ));    
 
 		my $nextStartTimestamp = strftime("%Y-%m-%d %H:%M:%S", localtime($hash->{HusqvarnaAutomower}->{mower_nextStart}) );
-		readingsBulkUpdate($hash, "mower_nextStart", $nextStartTimestamp );  
+		readingsBulkUpdate($hash, "mower_nextStart", $nextStartTimestamp );
+
+		readingsBulkUpdate($hash, "mower_geofence", $hash->{HusqvarnaAutomower}->{mower_geofence} );
+		readingsBulkUpdate($hash, "mower_headlights", $hash->{HusqvarnaAutomower}->{mower_headlights} );
+		readingsBulkUpdate($hash, "mower_searchChargingStation", $hash->{HusqvarnaAutomower}->{mower_searchChargingStation} );
+		readingsBulkUpdate($hash, "mower_fota", $hash->{HusqvarnaAutomower}->{mower_fota} );
+		readingsBulkUpdate($hash, "mower_gpsNavigation", $hash->{HusqvarnaAutomower}->{mower_gpsNavigation} );
+		readingsBulkUpdate($hash, "mower_weatherTimer", $hash->{HusqvarnaAutomower}->{mower_weatherTimer} );
+		readingsBulkUpdate($hash, "mower_corridorWidth", $hash->{HusqvarnaAutomower}->{mower_corridorWidth} );  
 		  
 		readingsEndUpdate($hash, 1);
  	    
@@ -569,7 +598,7 @@ sub HusqvarnaAutomower_getMowerStatusResponse($) {
                                            
     } elsif($data ne "") {
 	    
-		#Log3 $name, 5, $data; 
+		Log3 $name, 5, $data; 
         my $result = eval { decode_json($data) };
         if ($@) {
             Log3( $name, 2, " - JSON error while request: $@");
@@ -591,6 +620,13 @@ sub HusqvarnaAutomower_getMowerStatusResponse($) {
 		$hash->{HusqvarnaAutomower}->{mower_lastLatitude} = $result->{'lastLocations'}->[0]->{'latitude'};
 		$hash->{HusqvarnaAutomower}->{mower_lastLongitude} = $result->{'lastLocations'}->[0]->{'longitude'};
 
+		$hash->{HusqvarnaAutomower}->{mower_connected} = $result->{'connected'};
+		my $lastErrorCode = HusqvarnaAutomower_errormapping( $result->{'lastErrorCode'});
+		$hash->{HusqvarnaAutomower}->{mower_lastErrorCode} = $lastErrorCode->{ $hash->{HusqvarnaAutomower}->{language} } ;
+		$hash->{HusqvarnaAutomower}->{mower_lastErrorCodeTimestamp} = HusqvarnaAutomower_Correct_Localtime( $result->{'lastErrorCodeTimestamp'} );
+		$hash->{HusqvarnaAutomower}->{mower_errorConfirmable} = $result->{'errorConfirmable'};
+
+
 		readingsBeginUpdate($hash);
 		
 		readingsBulkUpdate($hash, "mower_battery", $hash->{HusqvarnaAutomower}->{mower_battery}."%" );    
@@ -600,7 +636,7 @@ sub HusqvarnaAutomower_getMowerStatusResponse($) {
 		readingsBulkUpdate($hash, "mower_mode", $hash->{HusqvarnaAutomower}->{mower_mode} );  
 
 		my $nextStartTimestamp = strftime("%Y-%m-%d %H:%M", localtime($hash->{HusqvarnaAutomower}->{mower_nextStart}));
-		if ($nextStartTimestamp eq "1969-12-31 23:00") { $nextStartTimestamp = "-"; }
+		if ($nextStartTimestamp le "1999-12-31 00:00") { $nextStartTimestamp = "-"; }
 		
 		if (
 			strftime("%Y-%m-%d", localtime($hash->{HusqvarnaAutomower}->{mower_nextStart}) )
@@ -629,7 +665,14 @@ sub HusqvarnaAutomower_getMowerStatusResponse($) {
   		readingsBulkUpdate($hash, "mower_cuttingMode", $hash->{HusqvarnaAutomower}->{mower_cuttingMode} );    
 
 		readingsBulkUpdate($hash, "mower_lastLatitude", $hash->{HusqvarnaAutomower}->{mower_lastLatitude} );    
-		readingsBulkUpdate($hash, "mower_lastLongitude", $hash->{HusqvarnaAutomower}->{mower_lastLongitude} );    
+		readingsBulkUpdate($hash, "mower_lastLongitude", $hash->{HusqvarnaAutomower}->{mower_lastLongitude} ); 
+
+		readingsBulkUpdate($hash, "mower_connected", $hash->{HusqvarnaAutomower}->{mower_connected} );    
+		readingsBulkUpdate($hash, "mower_lastErrorCode", $hash->{HusqvarnaAutomower}->{mower_lastErrorCode} );
+		my $lastErrorCodeTimestamp = strftime("%Y-%m-%d %H:%M", localtime( $hash->{HusqvarnaAutomower}->{mower_lastErrorCodeTimestamp} ));   
+		if ($lastErrorCodeTimestamp le "1999-12-31 00:00") { $lastErrorCodeTimestamp = "-"; } 
+		readingsBulkUpdate($hash, "mower_lastErrorCodeTimestamp", $lastErrorCodeTimestamp );  
+		readingsBulkUpdate($hash, "mower_errorConfirmable", $hash->{HusqvarnaAutomower}->{mower_errorConfirmable} );    
 		
 		readingsEndUpdate($hash, 1);
 	    
@@ -668,6 +711,7 @@ sub HusqvarnaAutomower_CMD($$) {
     elsif   ($cmd eq "stop")        { $cmdURL = "pause"; }
     elsif   ($cmd eq "park")        { $cmdURL = "park"; }
     elsif   ($cmd eq "parkTimer")   { $cmdURL = "park/duration/timer"; }
+	elsif 	($cmd eq "update")	{ return; }
 
     HttpUtils_NonblockingGet({
         url        	=> APIURL . "mowers/". $mower_id . "/control/" . $cmdURL,
@@ -706,7 +750,7 @@ sub HusqvarnaAutomower_CMDResponse($) {
 
 	    } else {
 	        Log3 $name, 3, $data; 
-            $hash->{HusqvarnaAutomower}->{mower_commandStatus} = 'OK';
+            $hash->{HusqvarnaAutomower}->{mower_commandStatus} = $result->{status} . " ". $result->{errorCode};
 
 	    }
 
@@ -786,7 +830,8 @@ sub HusqvarnaAutomower_ToGerman($$) {
 		'IN_OPERATION'                  =>	'aktiv',
 		'RESTRICTED'                    =>	'inaktiv',
 
-		'OK'                            =>  'OK'
+		'OK'                            =>  'OK',
+
 	);
     
     if( defined($langGermanMapping{$readingValue}) and  HusqvarnaAutomower_isSetGerman($hash) ) {
@@ -808,6 +853,386 @@ sub HusqvarnaAutomower_isSetGerman($) {
 
 sub HusqvarnaAutomower_Whoami()  { return (split('::',(caller(1))[3]))[1] || ''; }
 sub HusqvarnaAutomower_Whowasi() { return (split('::',(caller(2))[3]))[1] || ''; }
+
+sub HusqvarnaAutomower_errormapping($) {
+	my ($Enummer) = @_;
+
+		my %ErrorMapping = (
+		'0'   =>	{
+						'EN' => 'Unexpected error',
+						'DE' => 'Unerwarteter Fehler',
+					},
+		'1'   =>  {
+						'EN' => 'Outside working area',
+						'DE' => 'Außerhalb des Arbeitsbereichs',
+					},
+		'2'   =>  {
+						'EN' => 'No loop signal',
+						'DE' => 'Kein Schleifensignal',
+					},
+		'3'   =>  {
+						'EN' => 'Wrong loop signal',
+						'DE' => 'Falsches Schleifensignal',
+					},
+		'4'   =>  {
+						'EN' => 'Loop sensor problem, front',
+						'DE' => 'Schleifensensorproblem, vorne',
+					},
+		'5'   =>  {
+						'EN' => 'Loop sensor problem, rear',
+						'DE' => 'Schleifensensor Problem, hinten',
+					},
+		'6'   =>  {
+						'EN' => 'Loop sensor problem, left',
+						'DE' => 'Schleifensensorproblem, links',
+					},
+		'7'   =>  {
+						'EN' => 'Loop sensor problem, right',
+						'DE' => 'Schleifensensorproblem, rechts',
+					},
+		'8'   =>  {
+						'EN' => 'Wrong PIN code',
+						'DE' => 'Falscher PIN-Code',
+					},
+		'9'   =>  {
+						'EN' => 'Trapped',
+						'DE' => 'Gefangen',
+					},
+		'10'   =>  {
+						'EN' => 'Upside down',
+						'DE' => 'Kopfüber',
+					},
+		'11'   =>  {
+						'EN' => 'Low battery',
+						'DE' => 'Niedriger Batteriestatus',
+					},
+		'12'   =>  {
+						'EN' => 'Empty battery',
+						'DE' => 'Batterie leer',
+					},
+		'13'   =>  {
+						'EN' => 'No drive',
+						'DE' => 'kein Antrieb',
+					},
+		'14'   =>  {
+						'EN' => 'Mower lifted',
+						'DE' => 'Mäher angehoben',
+					},
+		'15'   =>  {
+						'EN' => 'Lifted',
+						'DE' => 'angehoben',
+					},
+		'16'   =>  {
+						'EN' => 'Stuck in charging station',
+						'DE' => 'In der Ladestation stecken',
+					},
+		'17'   =>  {
+						'EN' => 'Charging station blocked',
+						'DE' => 'Ladestation blockiert',
+					},
+		'18'   =>  {
+						'EN' => 'Collision sensor problem, rear',
+						'DE' => 'Kollisionssensor Problem, hinten',
+					},
+		'19'   =>  {
+						'EN' => 'Collision sensor problem, front',
+						'DE' => 'Kollisionssensor Problem, vorn',
+					},
+		'20'   =>  {
+						'EN' => 'Wheel motor blocked, right',
+						'DE' => 'Kollisionssensor Problem, rechts',
+					},
+		'21'   =>  {
+						'EN' => 'Wheel motor blocked, left',
+						'DE' => 'Kollisionssensor Problem, links',
+					},
+		'22'   =>  {
+						'EN' => 'Wheel drive problem, right',
+						'DE' => 'Radantriebsproblem rechts',
+					},
+		'23'   =>  {
+						'EN' => 'Wheel drive problem, left',
+						'DE' => 'Radantriebsproblem links',
+					},
+		'24'   =>  {
+						'EN' => 'Cutting system blocked',
+						'DE' => 'Schneidsystem blockiert',
+					},
+		'25'   =>  {
+						'EN' => 'Cutting system blocked',
+						'DE' => 'Schneidsystem blockiert',
+					},
+		'26'   =>  {
+						'EN' => 'Invalid sub-device combination',
+						'DE' => 'Ungültige Subgerätekombination',
+					},
+		'27'   =>  {
+						'EN' => 'Settings restored',
+						'DE' => 'Einstellungen wiederhergestellt',
+					},
+		'28'   =>  {
+						'EN' => 'Memory circuit problem',
+						'DE' => 'Speicherproblem',
+					},
+		'29'   =>  {
+						'EN' => 'Slope too steep',
+						'DE' => 'Hang zu steil',
+					},
+		'30'   =>  {
+						'EN' => 'Charging system problem',
+						'DE' => 'Problem mit dem Ladesystem',
+					},
+		'31'   =>  {
+						'EN' => 'STOP button problem',
+						'DE' => 'STOP-Taste Problem',
+					},
+		'32'   =>  {
+						'EN' => 'Tilt sensor problem',
+						'DE' => 'Problem mit dem Neigungssensor',
+					},
+		'33'   =>  {
+						'EN' => 'Mower tilted',
+						'DE' => 'Mäher gekippt',
+					},
+		'34'   =>  {
+						'EN' => 'Cutting stopped - slope too steep',
+						'DE' => 'Schnitt gestoppt - Gefälle zu steil',
+					},
+		'35'   =>  {
+						'EN' => 'Wheel motor overloaded, right',
+						'DE' => 'Radmotor rechts überlastet',
+					},
+		'36'   =>  {
+						'EN' => 'Wheel motor overloaded, left',
+						'DE' => 'Radmotor links überlastet',
+					},
+		'37'   =>  {
+						'EN' => 'Charging current too high',
+						'DE' => 'Ladestrom zu hoch',
+					},
+		'38'   =>  {
+						'EN' => 'Electronic problem',
+						'DE' => 'Elektronisches Problem',
+					},
+		'39'   =>  {
+						'EN' => 'Cutting motor problem',
+						'DE' => 'Schneidmotorproblem',
+					},
+		'40'   =>  {
+						'EN' => 'Limited cutting height range',
+						'DE' => 'Begrenzter Schnitthöhenbereich',
+					},
+		'41'   =>  {
+						'EN' => 'Unexpected cutting height adj',
+						'DE' => 'Unerwartete Schnitthöhe',
+					},
+		'42'   =>  {
+						'EN' => 'Limited cutting height range',
+						'DE' => 'Begrenzter Schnitthöhenbereich',
+					},
+		'43'   =>  {
+						'EN' => 'Cutting height problem, drive',
+						'DE' => 'Schnitthöhenproblem, antrieb',
+					},
+		'44'   =>  {
+						'EN' => 'Cutting height problem, curr',
+						'DE' => 'Schnitthöhenproblem',
+					},
+		'45'   =>  {
+						'EN' => 'Cutting height problem, dir',
+						'DE' => 'Schnitthöhenproblem',
+					},
+		'46'   =>  {
+						'EN' => 'Cutting height blocked',
+						'DE' => 'Schnitthöhe blockiert',
+					},
+		'47'   =>  {
+						'EN' => 'Cutting height problem',
+						'DE' => 'Schnitthöhenproblem',
+					},
+		'48'   =>  {
+						'EN' => 'No response from charger',
+						'DE' => 'Keine Antwort vom Ladegerät',
+					},
+		'49'   =>  {
+						'EN' => 'Ultrasonic problem',
+						'DE' => 'Ultraschallproblem',
+					},
+		'50'   =>  {
+						'EN' => 'Guide 1 not found',
+						'DE' => 'Suchkabel 1 nicht gefunden',
+					},
+		'51'   =>  {
+						'EN' => 'Guide 2 not found',
+						'DE' => 'Suchkabel 2 nicht gefunden',
+					},
+		'52'   =>  {
+						'EN' => 'Guide 3 not found',
+						'DE' => 'Suchkabel 3 nicht gefunden',
+					},
+		'53'   =>  {
+						'EN' => 'GPS navigation problem',
+						'DE' => 'GPS-Navigationsproblem',
+					},
+		'54'   =>  {
+						'EN' => 'Weak GPS signal',
+						'DE' => 'Schwaches GPS-Signal',
+					},
+		'55'   =>  {
+						'EN' => 'Difficult finding home',
+						'DE' => 'Schwer nach Hause zu finden',
+					},
+		'56'   =>  {
+						'EN' => 'Guide calibration accomplished',
+						'DE' => 'Suchkabelkalibrierung abgeschlossen',
+					},
+		'57'   =>  {
+						'EN' => 'Guide calibration failed',
+						'DE' => 'Suchkabelkalibrierung fehlgeschlagen',
+					},
+		'58'   =>  {
+						'EN' => 'Temporary battery problem',
+						'DE' => 'Temporäres Batterieproblem',
+					},
+		'59'   =>  {
+						'EN' => 'Temporary battery problem',
+						'DE' => 'Temporäres Batterieproblem',
+					},
+		'60'   =>  {
+						'EN' => 'Temporary battery problem',
+						'DE' => 'Temporäres Batterieproblem',
+					},
+		'61'   =>  {
+						'EN' => 'Temporary battery problem',
+						'DE' => 'Temporäres Batterieproblem',
+					},
+		'62'   =>  {
+						'EN' => 'Temporary battery problem',
+						'DE' => 'Temporäres Batterieproblem',
+					},
+		'63'   =>  {
+						'EN' => 'Temporary battery problem',
+						'DE' => 'Temporäres Batterieproblem',
+					},
+		'64'   =>  {
+						'EN' => 'Temporary battery problem',
+						'DE' => 'Temporäres Batterieproblem',
+					},
+		'65'   =>  {
+						'EN' => 'Temporary battery problem',
+						'DE' => 'Temporäres Batterieproblem',
+					},
+		'66'   =>  {
+						'EN' => 'Battery problem',
+						'DE' => 'Batterieproblem',
+					},
+		'67'   =>  {
+						'EN' => 'Battery problem',
+						'DE' => 'Batterieproblem',
+					},
+		'68'   =>  {
+						'EN' => 'Temporary battery problem',
+						'DE' => 'Temporäres Batterieproblem',
+					},
+		'69'   =>  {
+						'EN' => 'Alarm! Mower switched off',
+						'DE' => 'Alarm! Mäher ausgeschaltet',
+					},
+		'70'   =>  {
+						'EN' => 'Alarm! Mower stopped',
+						'DE' => 'Alarm! Mäher angehalten',
+					},
+		'71'   =>  {
+						'EN' => 'Alarm! Mower lifted',
+						'DE' => 'Alarm! Mäher angehoben',
+					},
+		'72'   =>  {
+						'EN' => 'Alarm! Mower tilted',
+						'DE' => 'Alarm! Mäher gekippt',
+					},
+		'73'   =>  {
+						'EN' => 'Alarm! Mower in motion',
+						'DE' => 'Alarm! Mäher in Bewegung',
+					},
+		'74'   =>  {
+						'EN' => 'Alarm! Outside geofence',
+						'DE' => 'Alarm! Außerhalb Geofence',
+					},
+		'75'   =>  {
+						'EN' => 'Connection changed',
+						'DE' => 'Verbindung geändert',
+					},
+		'76'   =>  {
+						'EN' => 'Connection NOT changed',
+						'DE' => 'Verbindung NICHT geändert',
+					},
+		'77'   =>  {
+						'EN' => 'Com board not available',
+						'DE' => 'Com Board nicht verfügbar',
+					},
+		'78'   =>  {
+						'EN' => 'Slipped - Mower has Slipped.Situation not solved with moving pattern',
+						'DE' => 'Ausgerutscht - Mäher ist ausgerutscht. Situation nicht mit Bewegungsmuster gelöst',
+					},
+		'79'   =>  {
+						'EN' => 'Invalid battery combination - Invalid combination of different battery types.',
+						'DE' => 'Ungültige Batteriekombination - Ungültige Kombination verschiedener Batterietypen.',
+					},
+		'80'   =>  {
+						'EN' => 'Cutting system imbalance    Warning',
+						'DE' => 'Unwucht des Schneidsystems    Warnung',
+					},
+		'81'   =>  {
+						'EN' => 'Safety function faulty',
+						'DE' => 'Sicherheitsfunktion fehlerhaft',
+					},
+		'82'   =>  {
+						'EN' => 'Wheel motor blocked, rear right',
+						'DE' => 'Radmotor hinten rechts blockiert',
+					},
+		'83'   =>  {
+						'EN' => 'Wheel motor blocked, rear left',
+						'DE' => 'Radmotor hinten links blockiert',
+					},
+		'84'   =>  {
+						'EN' => 'Wheel drive problem, rear right',
+						'DE' => 'Problem mit dem Radantrieb hinten rechts',
+					},
+		'85'   =>  {
+						'EN' => 'Wheel drive problem, rear left',
+						'DE' => 'Problem mit dem Radantrieb hinten links',
+					},
+		'86'   =>  {
+						'EN' => 'Wheel motor overloaded, rear right',
+						'DE' => 'Radmotor hinten rechts überlastet',
+					},
+		'87'   =>  {
+						'EN' => 'Wheel motor overloaded, rear left',
+						'DE' => 'Radmotor hinten links überlastet',
+					},
+		'88'   =>  {
+						'EN' => 'Angular sensor problem',
+						'DE' => 'Winkelsensor Problem',
+					},
+		'89'   =>  {
+						'EN' => 'Invalid system configuration',
+						'DE' => 'Ungültige Systemkonfiguration',
+					},
+		'90'   =>  {
+						'EN' => 'No power in charging station',
+						'DE' => 'Kein Strom in der Ladestation',
+					},
+		);
+	return $ErrorMapping{$Enummer};
+	if( defined($ErrorMapping{$Enummer}) ) {
+        return \%ErrorMapping{$Enummer};
+    } else {
+        return {
+						'EN' => 'X',
+						'DE' => 'X',
+					};
+    }
+}
 
 ##############################################################
 
