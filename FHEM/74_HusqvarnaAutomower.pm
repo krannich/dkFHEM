@@ -1,6 +1,6 @@
 ###############################################################################
 # 
-#  (c) 2018-2019 Copyright: Dr. Dennis Krannich (blogger at krannich dot de)
+#  (c) 2018-2020 Copyright: Dr. Dennis Krannich (blogger at krannich dot de)
 #  All rights reserved
 #
 #  This script is free software; you can redistribute it and/or modify
@@ -98,23 +98,23 @@ sub HusqvarnaAutomower_Define($$){
         HusqvarnaAutomower => { 
             CONNECTED				=> 0,
             version     				=> $version,
-            token					=> '',
-            provider					=> '',
-            user_id					=> '',
-            mower_id					=> '',
-            mower_name				=> '',
-            mower_model 				=> '',
-            mower_battery 			=> 0,
-            mower_activity 		 	=> '',
-            mower_state 		 		=> '',
-			mower_mode				=> '',
-            mower_cuttingMode		=> '',
-            mower_commandStatus		=> '',
-            mower_lastLatitude 		=> 0,
-            mower_lastLongitude 		=> 0,
-            mower_nextStart 			=> 0,
-            mower_nextStartSource 	=> '',
-            mower_restrictedReason	=> '',
+            token							=> '',
+            provider						=> '',
+            user_id							=> '',
+            mower_id						=> '',
+            mower_name						=> '',
+            mower_model 					=> '',
+            mower_battery 					=> 0,
+            mower_activity 		 			=> '',
+            mower_state 		 			=> '',
+			mower_mode						=> '',
+            mower_cuttingMode				=> '',
+            mower_commandStatus				=> '',
+            mower_lastLatitude 				=> 0,
+            mower_lastLongitude 			=> 0,
+            mower_nextStart 				=> 0,
+            mower_nextStartSource 			=> '',
+            mower_restrictedReason			=> '',
             mower							=> 0,
             batteryPercent					=> 0,
             username 						=> '',
@@ -133,6 +133,13 @@ sub HusqvarnaAutomower_Define($$){
 			mower_lastErrorCode				=> '',
 			mower_lastErrorCodeTimestamp	=> '',
 			mower_errorConfirmable			=> '',
+			mower_totalRunningTime			=> '',
+			mower_totalCuttingTime			=> '',
+			mower_totalChargingTime			=> '',
+			mower_totalSearchingTime		=> '',
+			mower_numberOfCollisions		=> '',
+			mower_numberOfChargingCycles	=> '',
+			mower_cuttingBladeUsageTime		=> '',
         },
     );
 	
@@ -288,8 +295,8 @@ sub HusqvarnaAutomower_Set($@){
         return undef;
     }
     
-    if ($setName !~ /start3h|start6h|start9h|startTimer|stop|park|parkTimer|update/) {
-        return "Unknown argument $setName, choose one of start3h start6h start9h startTimer stop park parkTimer update";
+    if ($setName !~ /start3h|start6h|start9h|park3h|park6h|park9h|startTimer|stop|park|parkTimer|update/) {
+        return "Unknown argument $setName, choose one of start3h start6h start9h park3h park6h park9h startTimer stop park parkTimer update";
 	} else {
         Log3 $name, 3, "$name: set $setName";
     }
@@ -438,6 +445,7 @@ sub HusqvarnaAutomower_DoUpdate($) {
 
 	} elsif ($hash->{HusqvarnaAutomower}->{CONNECTED} eq 'connected') {
 		Log3 $name, 4, "Update with device: " . $hash->{HusqvarnaAutomower}->{mower_id};
+                HusqvarnaAutomower_getMowerStatistics($hash);
 		HusqvarnaAutomower_getMowerStatus($hash);
         InternalTimer( time() + $hash->{HusqvarnaAutomower}->{interval}, $self, $hash, 0 );
 
@@ -524,9 +532,9 @@ sub HusqvarnaAutomower_getMowerResponse($) {
 
 			# MOWER capabilities
 			my $mymowerCapabilities = $mymower->{'capabilities'};
-			$hash->{HusqvarnaAutomower}->{mower_geofence} = $mymowerCapabilities->{'geofence'};
+			$hash->{HusqvarnaAutomower}->{mower_geofence} = $mymowerCapabilities->{'settableGeoFenceRadius'};
 			$hash->{HusqvarnaAutomower}->{mower_headlights} = $mymowerCapabilities->{'headlights'};
-			$hash->{HusqvarnaAutomower}->{mower_searchChargingStation} = $mymowerCapabilities->{'searchChargingStation'};
+			$hash->{HusqvarnaAutomower}->{mower_searchChargingStation} = $mymowerCapabilities->{'searchTypes'};
 			$hash->{HusqvarnaAutomower}->{mower_fota} = $mymowerCapabilities->{'fota'};
 			$hash->{HusqvarnaAutomower}->{mower_gpsNavigation} = $mymowerCapabilities->{'gpsNavigation'};
 			$hash->{HusqvarnaAutomower}->{mower_weatherTimer} = $mymowerCapabilities->{'weatherTimer'};
@@ -682,6 +690,73 @@ sub HusqvarnaAutomower_getMowerStatusResponse($) {
 
 }
 
+sub HusqvarnaAutomower_getMowerStatistics($) {
+	my ($hash) = @_;
+    my ($name) = $hash->{NAME};
+
+	my $token = $hash->{HusqvarnaAutomower}->{token};
+	my $provider = $hash->{HusqvarnaAutomower}->{provider};
+	my $header = "Content-Type: application/json\r\nAccept: application/json\r\nAuthorization: Bearer " . $token . "\r\nAuthorization-Provider: " . $provider;
+
+	my $mymower_id = $hash->{HusqvarnaAutomower}->{mower_id};
+
+	HttpUtils_NonblockingGet({
+        url        	=> APIURL . "mowers/" . $mymower_id . "/statistics",
+        timeout    	=> 5,
+        hash       	=> $hash,
+        method     	=> "GET",
+        header     	=> $header,  
+        callback   	=> \&HusqvarnaAutomower_getMowerStatisticsResponse,
+    });  
+	
+	return undef;
+}
+
+sub HusqvarnaAutomower_getMowerStatisticsResponse($) {
+	
+	my ($param, $err, $data) = @_;
+    my $hash = $param->{hash};
+    my $name = $hash->{NAME};
+
+    if($err ne "") {
+        Log3 $name, 2, "error while requesting ".$param->{url}." - $err";     
+                                           
+    } elsif($data ne "") {
+	    
+		Log3 $name, 5, $data; 
+        my $result = eval { decode_json($data) };
+        if ($@) {
+            Log3( $name, 2, " - JSON error while request: $@");
+            return;
+        }
+		        
+		$hash->{HusqvarnaAutomower}->{mower_totalRunningTime} = $result->{'totalRunningTime'}/60;
+		$hash->{HusqvarnaAutomower}->{mower_totalCuttingTime} = $result->{'totalCuttingTime'}/60;
+		$hash->{HusqvarnaAutomower}->{mower_totalChargingTime} = $result->{'totalChargingTime'}/60;
+		$hash->{HusqvarnaAutomower}->{mower_totalSearchingTime} = $result->{'totalSearchingTime'}/60;
+		$hash->{HusqvarnaAutomower}->{mower_numberOfCollisions} = $result->{'numberOfCollisions'};
+		$hash->{HusqvarnaAutomower}->{mower_numberOfChargingCycles} = $result->{'numberOfChargingCycles'};
+		$hash->{HusqvarnaAutomower}->{mower_cuttingBladeUsageTime} = $result->{'cuttingBladeUsageTime'}/60;
+		
+
+		readingsBeginUpdate($hash);
+		
+		readingsBulkUpdate($hash, "mower_totalRunningTime", $hash->{HusqvarnaAutomower}->{mower_totalRunningTime} );    
+		readingsBulkUpdate($hash, "mower_totalCuttingTime", $hash->{HusqvarnaAutomower}->{mower_totalCuttingTime} );    
+		readingsBulkUpdate($hash, "mower_totalChargingTime", $hash->{HusqvarnaAutomower}->{mower_totalChargingTime} );    
+		readingsBulkUpdate($hash, "mower_totalSearchingTime", $hash->{HusqvarnaAutomower}->{mower_totalSearchingTime} );  
+		readingsBulkUpdate($hash, "mower_numberOfCollisions", $hash->{HusqvarnaAutomower}->{mower_numberOfCollisions} );  
+		readingsBulkUpdate($hash, "mower_numberOfChargingCycles", $hash->{HusqvarnaAutomower}->{mower_numberOfChargingCycles} ); 
+		readingsBulkUpdate($hash, "mower_cuttingBladeUsageTime", $hash->{HusqvarnaAutomower}->{mower_cuttingBladeUsageTime} ); 
+		
+		readingsEndUpdate($hash, 1);
+	    
+	}	
+	
+	return undef;
+
+}
+
 
 ##############################################################
 #
@@ -707,6 +782,9 @@ sub HusqvarnaAutomower_CMD($$) {
     if      ($cmd eq "start3h")     { $cmdURL = "start/override/period"; $json = '{"period": 180}'; }
     elsif   ($cmd eq "start6h")     { $cmdURL = "start/override/period"; $json = '{"period": 360}'; }
     elsif   ($cmd eq "start9h")     { $cmdURL = "start/override/period"; $json = '{"period": 540}'; }
+	elsif   ($cmd eq "park3h")     { $cmdURL = "park/duration/period"; $json = '{"period": 180}'; }
+    elsif   ($cmd eq "park6h")     { $cmdURL = "park/duration/period"; $json = '{"period": 360}'; }
+    elsif   ($cmd eq "park9h")     { $cmdURL = "park/duration/period"; $json = '{"period": 540}'; }
     elsif   ($cmd eq "startTimer")  { $cmdURL = "start"; }
     elsif   ($cmd eq "stop")        { $cmdURL = "pause"; }
     elsif   ($cmd eq "park")        { $cmdURL = "park"; }
@@ -1282,6 +1360,9 @@ sub HusqvarnaAutomower_errormapping($) {
 		<li>start3h - Starts immediately for 3 hours</li>
         <li>start6h - Starts immediately for 6 hours</li>
 		<li>start9h - Starts immediately for 9 hours</li>
+		<li>park3h - Park immediately for 3 hours</li>
+        <li>park6h - Park immediately for 6 hours</li>
+		<li>park9h - Park immediately for 9 hours</li>
 		<li>stop - Stops/pauses mower immediately at current position</li>
         <li>park - Parks mower in charging station until further notice</li>
 		<li>parkTimer - Parks mower in charging station and starts with next timer</li>
@@ -1326,6 +1407,24 @@ sub HusqvarnaAutomower_errormapping($) {
 		<li>state - status of connection to Husqvarna Cloud (e. g. connected)</li>
 		<li>token - current session token of Husqvarna Cloud</li>
 		<li>user_id - your user ID in Husqvarna Cloud</li>
+		<li>mower_geofence -  ?</li>
+		<li>mower_headlights -  ?</li>
+		<li>mower_searchChargingStation -  ?</li>
+		<li>mower_fota -  Firmware over the Air</li>
+		<li>mower_gpsNavigation -  ?</li>
+		<li>mower_weatherTimer -  ?</li>
+		<li>mower_corridorWidth -  ?</li>
+		<li>mower_connected -  Mower is connected to the Server</li>
+		<li>mower_lastErrorCode -  last Error</li>
+		<li>mower_lastErrorCodeTimestamp -  Time stamp of the pending error. no time no mistake</li>
+		<li>mower_errorConfirmable -  Error can be acknowledged</li>
+		<li>mower_totalRunningTime -  Total running time in minutes</li>
+		<li>mower_totalCuttingTime -  Cutting time in minutes</li>
+		<li>mower_totalChargingTime -  Charging time in minutes</li>
+		<li>mower_totalSearchingTime -  Search time in minutes</li>
+		<li>mower_numberOfCollisions -  Number of collisions</li>
+		<li>mower_numberOfChargingCycles -  Number of charging cycles</li>
+		<li>mower_cuttingBladeUsageTime -  ?</li>
 	</ul>
 
 </ul>
@@ -1373,6 +1472,9 @@ sub HusqvarnaAutomower_errormapping($) {
 		<li>start3h - Startet sofort für 3 Stunden</li>
         <li>start6h - Startet sofort für 6 Stunden</li>
 		<li>start9h - Startet sofort für 9 Stunden</li>
+		<li>park3h - Parkt sofort für 3 Stunden</li>
+        <li>park6h - Parkt sofort für 6 Stunden</li>
+		<li>park9h - Parkt sofort für 9 Stunden</li>
 		<li>stop - Stoppt/pausiert den Mäher sofort an der aktuellen Position</li>
         <li>park - Parkt den Mäher in der Ladestation bis auf Weiteres</li>
 		<li>parkTimer - Parkt den Mäher in der Ladestation und startet mit dem nächsten Timer</li>
@@ -1417,6 +1519,24 @@ sub HusqvarnaAutomower_errormapping($) {
 		<li>state - Status der Verbindung zur Husqvarna Cloud (e. g. connected)</li>
 		<li>token - aktueller Sitzungstoken für die Husqvarna Cloud</li>
 		<li>user_id - Nutzer-ID in der Husqvarna Cloud</li>
+		<li>mower_geofence -  ?</li>
+		<li>mower_headlights -  ?</li>
+		<li>mower_searchChargingStation -  ?</li>
+		<li>mower_fota -  Firmware over the Air</li>
+		<li>mower_gpsNavigation -  ?</li>
+		<li>mower_weatherTimer -  ?</li>
+		<li>mower_corridorWidth -  ?</li>
+		<li>mower_connected -  Mower ist zum Server verbunden</li>
+		<li>mower_lastErrorCode -  Letzte Fehlermeldung</li>
+		<li>mower_lastErrorCodeTimestamp -  Zeitstempel vom anstehendem Fehler. keine Zeit kein Fehler</li>
+		<li>mower_errorConfirmable -  Fehler Quittierbar</li>
+		<li>mower_totalRunningTime -  Gesamtlaufzeit in minuten</li>
+		<li>mower_totalCuttingTime -  Schneidzeit in minuten</li>
+		<li>mower_totalChargingTime -  Ladezeit in minuten</li>
+		<li>mower_totalSearchingTime -  Suchzeit in minuten</li>
+		<li>mower_numberOfCollisions -  Anzahl Kollisionen</li>
+		<li>mower_numberOfChargingCycles -  Anzahl Ladezyklen</li>
+		<li>mower_cuttingBladeUsageTime -  ?</li>
 	</ul>
 
 </ul>
