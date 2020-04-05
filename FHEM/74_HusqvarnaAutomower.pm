@@ -122,13 +122,13 @@ sub HusqvarnaAutomower_Define($$){
             password 						=> '',
             interval    					=> 300,
             expires 						=> time(),
-			mower_geofence					=> '',
-			mower_headlights				=> '',
-			mower_searchChargingStation		=> '',
-			mower_fota						=> '',
-			mower_gpsNavigation				=> '',
-			mower_weatherTimer				=> '',
-			mower_corridorWidth				=> '',
+#			mower_geofence					=> '',
+#			mower_headlights				=> '',
+#			mower_searchChargingStation		=> '',
+#			mower_fota						=> '',
+#			mower_gpsNavigation				=> '',
+#			mower_weatherTimer				=> '',
+#			mower_corridorWidth				=> '',
 			mower_connected					=> '',
 			mower_lastErrorCode				=> '',
 			mower_lastErrorCodeTimestamp	=> '',
@@ -445,12 +445,10 @@ sub HusqvarnaAutomower_DoUpdate($) {
 
 	} elsif ($hash->{HusqvarnaAutomower}->{CONNECTED} eq 'connected') {
 		Log3 $name, 4, "Update with device: " . $hash->{HusqvarnaAutomower}->{mower_id};
-                HusqvarnaAutomower_getMowerStatistics($hash);
+        HusqvarnaAutomower_getMowerStatistics($hash);
 		HusqvarnaAutomower_getMowerStatus($hash);
-        InternalTimer( time() + $hash->{HusqvarnaAutomower}->{interval}, $self, $hash, 0 );
-
 	} 
-
+	InternalTimer( time() + $hash->{HusqvarnaAutomower}->{interval}, $self, $hash, 0 );
 }
 
 
@@ -531,14 +529,14 @@ sub HusqvarnaAutomower_getMowerResponse($) {
 			$hash->{HusqvarnaAutomower}->{mower_nextStart} = HusqvarnaAutomower_Correct_Localtime( $mymowerStatus->{'nextStartTimestamp'} );
 
 			# MOWER capabilities
-			my $mymowerCapabilities = $mymower->{'capabilities'};
-			$hash->{HusqvarnaAutomower}->{mower_geofence} = $mymowerCapabilities->{'settableGeoFenceRadius'};
-			$hash->{HusqvarnaAutomower}->{mower_headlights} = $mymowerCapabilities->{'headlights'};
-			$hash->{HusqvarnaAutomower}->{mower_searchChargingStation} = $mymowerCapabilities->{'searchTypes'};
-			$hash->{HusqvarnaAutomower}->{mower_fota} = $mymowerCapabilities->{'fota'};
-			$hash->{HusqvarnaAutomower}->{mower_gpsNavigation} = $mymowerCapabilities->{'gpsNavigation'};
-			$hash->{HusqvarnaAutomower}->{mower_weatherTimer} = $mymowerCapabilities->{'weatherTimer'};
-			$hash->{HusqvarnaAutomower}->{mower_corridorWidth} = $mymowerCapabilities->{'corridorWidth'};
+#			my $mymowerCapabilities = $mymower->{'capabilities'};
+#			$hash->{HusqvarnaAutomower}->{mower_geofence} = $mymowerCapabilities->{'settableGeoFenceRadius'};
+#			$hash->{HusqvarnaAutomower}->{mower_headlights} = $mymowerCapabilities->{'headlights'};
+#			$hash->{HusqvarnaAutomower}->{mower_searchChargingStation} = $mymowerCapabilities->{'searchTypes'};
+#			$hash->{HusqvarnaAutomower}->{mower_fota} = $mymowerCapabilities->{'fota'};
+#			$hash->{HusqvarnaAutomower}->{mower_gpsNavigation} = $mymowerCapabilities->{'gpsNavigation'};
+#			$hash->{HusqvarnaAutomower}->{mower_weatherTimer} = $mymowerCapabilities->{'weatherTimer'};
+#			$hash->{HusqvarnaAutomower}->{mower_corridorWidth} = $mymowerCapabilities->{'corridorWidth'};
 
 			HusqvarnaAutomower_CONNECTED($hash,'connected');
 
@@ -556,13 +554,13 @@ sub HusqvarnaAutomower_getMowerResponse($) {
 		my $nextStartTimestamp = strftime("%Y-%m-%d %H:%M:%S", localtime($hash->{HusqvarnaAutomower}->{mower_nextStart}) );
 		readingsBulkUpdate($hash, "mower_nextStart", $nextStartTimestamp );
 
-		readingsBulkUpdate($hash, "mower_geofence", $hash->{HusqvarnaAutomower}->{mower_geofence} );
-		readingsBulkUpdate($hash, "mower_headlights", $hash->{HusqvarnaAutomower}->{mower_headlights} );
-		readingsBulkUpdate($hash, "mower_searchChargingStation", $hash->{HusqvarnaAutomower}->{mower_searchChargingStation} );
-		readingsBulkUpdate($hash, "mower_fota", $hash->{HusqvarnaAutomower}->{mower_fota} );
-		readingsBulkUpdate($hash, "mower_gpsNavigation", $hash->{HusqvarnaAutomower}->{mower_gpsNavigation} );
-		readingsBulkUpdate($hash, "mower_weatherTimer", $hash->{HusqvarnaAutomower}->{mower_weatherTimer} );
-		readingsBulkUpdate($hash, "mower_corridorWidth", $hash->{HusqvarnaAutomower}->{mower_corridorWidth} );  
+#		readingsBulkUpdate($hash, "mower_geofence", $hash->{HusqvarnaAutomower}->{mower_geofence} );
+#		readingsBulkUpdate($hash, "mower_headlights", $hash->{HusqvarnaAutomower}->{mower_headlights} );
+#		readingsBulkUpdate($hash, "mower_searchChargingStation", $hash->{HusqvarnaAutomower}->{mower_searchChargingStation} );
+#		readingsBulkUpdate($hash, "mower_fota", $hash->{HusqvarnaAutomower}->{mower_fota} );
+#		readingsBulkUpdate($hash, "mower_gpsNavigation", $hash->{HusqvarnaAutomower}->{mower_gpsNavigation} );
+#		readingsBulkUpdate($hash, "mower_weatherTimer", $hash->{HusqvarnaAutomower}->{mower_weatherTimer} );
+#		readingsBulkUpdate($hash, "mower_corridorWidth", $hash->{HusqvarnaAutomower}->{mower_corridorWidth} );  
 		  
 		readingsEndUpdate($hash, 1);
  	    
@@ -1407,13 +1405,13 @@ sub HusqvarnaAutomower_errormapping($) {
 		<li>state - status of connection to Husqvarna Cloud (e. g. connected)</li>
 		<li>token - current session token of Husqvarna Cloud</li>
 		<li>user_id - your user ID in Husqvarna Cloud</li>
-		<li>mower_geofence -  ?</li>
-		<li>mower_headlights -  ?</li>
-		<li>mower_searchChargingStation -  ?</li>
-		<li>mower_fota -  Firmware over the Air</li>
-		<li>mower_gpsNavigation -  ?</li>
-		<li>mower_weatherTimer -  ?</li>
-		<li>mower_corridorWidth -  ?</li>
+		<li>mower_geofence -  !im Moment nicht genutzt!</li>
+		<li>mower_headlights -  !im Moment nicht genutzt!</li>
+		<li>mower_searchChargingStation -  !im Moment nicht genutzt!</li>
+		<li>mower_fota -  !im Moment nicht genutzt!</li>
+		<li>mower_gpsNavigation -  !im Moment nicht genutzt!</li>
+		<li>mower_weatherTimer -  !im Moment nicht genutzt!</li>
+		<li>mower_corridorWidth -  !im Moment nicht genutzt!</li>
 		<li>mower_connected -  Mower is connected to the Server</li>
 		<li>mower_lastErrorCode -  last Error</li>
 		<li>mower_lastErrorCodeTimestamp -  Time stamp of the pending error. no time no mistake</li>
@@ -1519,13 +1517,13 @@ sub HusqvarnaAutomower_errormapping($) {
 		<li>state - Status der Verbindung zur Husqvarna Cloud (e. g. connected)</li>
 		<li>token - aktueller Sitzungstoken für die Husqvarna Cloud</li>
 		<li>user_id - Nutzer-ID in der Husqvarna Cloud</li>
-		<li>mower_geofence -  ?</li>
-		<li>mower_headlights -  ?</li>
-		<li>mower_searchChargingStation -  ?</li>
-		<li>mower_fota -  Firmware over the Air</li>
-		<li>mower_gpsNavigation -  ?</li>
-		<li>mower_weatherTimer -  ?</li>
-		<li>mower_corridorWidth -  ?</li>
+		<li>mower_geofence -  !not used at the moment!</li>
+		<li>mower_headlights -  !not used at the moment!</li>
+		<li>mower_searchChargingStation -  !not used at the moment!</li>
+		<li>mower_fota -  !not used at the moment!</li>
+		<li>mower_gpsNavigation -  !not used at the moment!</li>
+		<li>mower_weatherTimer -  !not used at the moment!</li>
+		<li>mower_corridorWidth -  !not used at the moment!</li>
 		<li>mower_connected -  Mower ist zum Server verbunden</li>
 		<li>mower_lastErrorCode -  Letzte Fehlermeldung</li>
 		<li>mower_lastErrorCodeTimestamp -  Zeitstempel vom anstehendem Fehler. keine Zeit kein Fehler</li>
