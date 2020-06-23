@@ -194,6 +194,10 @@ sub HusqvarnaAutomower_Notify($$) {
 		    Log3 $name, 3, "Reconnecting...";
 			HusqvarnaAutomower_APIAuth($hash);
 		}
+		if ( grep(/^state:.error$/, @{$events}) ) {
+		    Log3 $name, 3, "Error - Reconnecting...";
+			HusqvarnaAutomower_APIAuth($hash);
+		}
 	}
             
     return undef;
@@ -341,7 +345,7 @@ sub HusqvarnaAutomower_APIAuth($) {
 
     HttpUtils_NonblockingGet({
         url        	=> AUTHURL . "token",
-        timeout    	=> 5,
+        timeout    	=> 10,
         hash       	=> $hash,
         method     	=> "POST",
         header     	=> $header,  
@@ -432,7 +436,7 @@ sub HusqvarnaAutomower_DoUpdate($) {
     my ($hash) = @_;
     my ($name,$self) = ($hash->{NAME},HusqvarnaAutomower_Whoami());
 
-    Log3 $name, 5, "doUpdate() called.";
+    Log3 $name, 4, "doUpdate() called.";
 
     if (HusqvarnaAutomower_CONNECTED($hash) eq "disabled") {
         Log3 $name, 3, "$name - Device is disabled.";
@@ -447,7 +451,8 @@ sub HusqvarnaAutomower_DoUpdate($) {
 		Log3 $name, 4, "Update with device: " . $hash->{HusqvarnaAutomower}->{mower_id};
         HusqvarnaAutomower_getMowerStatistics($hash);
 		HusqvarnaAutomower_getMowerStatus($hash);
-	} 
+	}
+	RemoveInternalTimer($hash);
 	InternalTimer( time() + $hash->{HusqvarnaAutomower}->{interval}, $self, $hash, 0 );
 }
 
@@ -470,7 +475,7 @@ sub HusqvarnaAutomower_getMower($) {
 
 	HttpUtils_NonblockingGet({
         url        	=> APIURL . "mowers",
-        timeout    	=> 5,
+        timeout    	=> 10,
         hash       	=> $hash,
         method     	=> "GET",
         header     	=> $header,  
@@ -583,7 +588,7 @@ sub HusqvarnaAutomower_getMowerStatus($) {
 
 	HttpUtils_NonblockingGet({
         url        	=> APIURL . "mowers/" . $mymower_id . "/status",
-        timeout    	=> 5,
+        timeout    	=> 10,
         hash       	=> $hash,
         method     	=> "GET",
         header     	=> $header,  
@@ -700,7 +705,7 @@ sub HusqvarnaAutomower_getMowerStatistics($) {
 
 	HttpUtils_NonblockingGet({
         url        	=> APIURL . "mowers/" . $mymower_id . "/statistics",
-        timeout    	=> 5,
+        timeout    	=> 10,
         hash       	=> $hash,
         method     	=> "GET",
         header     	=> $header,  
@@ -774,7 +779,6 @@ sub HusqvarnaAutomower_CMD($$) {
     my $cmdURL = '';
     
 	my $header = "Content-Type: application/json\r\nAccept: application/json\r\nAuthorization: Bearer " . $token . "\r\nAuthorization-Provider: " . $provider;
-    
     Log3 $name, 5, "cmd: " . $cmd; 
 
     if      ($cmd eq "start3h")     { $cmdURL = "start/override/period"; $json = '{"period": 180}'; }
@@ -791,11 +795,12 @@ sub HusqvarnaAutomower_CMD($$) {
 
     HttpUtils_NonblockingGet({
         url        	=> APIURL . "mowers/". $mower_id . "/control/" . $cmdURL,
-        timeout    	=> 5,
+        timeout    	=> 10,
         hash       	=> $hash,
         method     	=> "POST",
         header     	=> $header,
 		data 		=> $json,
+		incrementalTimout => "1",
         callback   	=> \&HusqvarnaAutomower_CMDResponse,
     });  
     
@@ -808,8 +813,8 @@ sub HusqvarnaAutomower_CMDResponse($) {
     my $name = $hash->{NAME};
 
     if($err ne "") {
-	    HusqvarnaAutomower_CONNECTED($hash,'error');
-        Log3 $name, 2, "error while requesting ".$param->{url}." - $err";     
+	    #HusqvarnaAutomower_CONNECTED($hash,'error');
+        Log3 $name, 2, "error while requesting ".$param->{url}." - $err";   
                                            
     } elsif($data ne "") {
         
@@ -820,14 +825,14 @@ sub HusqvarnaAutomower_CMDResponse($) {
         }
 
 	    if ($result->{errors}) {
-		    HusqvarnaAutomower_CONNECTED($hash,'error');
+		    #HusqvarnaAutomower_CONNECTED($hash,'error');
 		    Log3 $name, 2, "Error: " . $result->{errors}[0]->{detail};
 		    $hash->{HusqvarnaAutomower}->{mower_commandStatus} = $result->{errors}[0]->{detail};
 
 	    } else {
 	        Log3 $name, 3, $data; 
-            $hash->{HusqvarnaAutomower}->{mower_commandStatus} = $result->{status} . " ". $result->{errorCode};
-
+            $hash->{HusqvarnaAutomower}->{mower_commandStatus} = $result->{status};
+			$hash->{HusqvarnaAutomower}->{mower_commandStatus} .= " ". $result->{errorCode} if (defined $result->{errorCode});
 	    }
 
 	    readingsSingleUpdate($hash, 'mower_commandStatus', $hash->{HusqvarnaAutomower}->{mower_commandStatus} ,1);
